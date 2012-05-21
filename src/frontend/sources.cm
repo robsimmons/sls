@@ -109,8 +109,6 @@ is
   solve.fun
   fquery.sig
   fquery.fun
-  buildid.sml
-  version.sml
   twelf.sig
   twelf.fun
   frontend.sml

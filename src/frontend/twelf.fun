@@ -1803,7 +1803,7 @@ struct
     = Config
     val make = make
 
-    val version = Version.version_string
+    val version = "hacked-recon"
 
     structure Table :
       sig
