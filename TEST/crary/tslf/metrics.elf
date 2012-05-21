@@ -1,6 +1,0 @@
-met	: type.
-
-
-met/unit	: met.
-met/pair	: met -> met -> met.
-met/sing	: met -> met.
