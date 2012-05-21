@@ -1,6 +1,14 @@
 Group is
   $SMACKAGE/cmlib/v1/cmlib.cm
   ../simple-fixity/sources.cm
+  ../lambda-reader/sources.cm
   ../twelf-recon/src/frontend/sources.cm
 
   syntax.l10.sml
+  handler.sml
+
+  foo.l10.sml
+  bar.l10.sml
+
+  lex.sml
+  parse.sml

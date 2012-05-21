@@ -1,7 +1,7 @@
 exp: type.
+junk: exp.
 lam: (exp -> exp) -> exp.
 app: exp -> exp -> exp.
-junk: exp.
 
 
 #|
@@ -19,7 +19,7 @@ ev: exp -> exp -> prop.
 ev/lam: 
   ev (lam \x. E x) (lam \x. E x).
 ev/app: 
-  ev (app E1 E2) V.
+  ev (app E1 E2) V
     <<- ev E1 (lam \x. E x)
     <<- ev E2 V2
     <<- ev (E V2) V.
@@ -39,9 +39,9 @@ evd/lam:
 
 evd/app: 
   evd (app E1 E2) V D
-    <<- ev E1 (lam \x. E x) vlam
-    <<- ev E2 V2 _
-    <<- ev (E V2) V D.
+    <<- evd E1 (lam \x. E x) vlam
+    <<- evd E2 V2 _
+    <<- evd (E V2) V D.
 
 
 #|
@@ -54,10 +54,10 @@ ev': exp -> exp -> prop.
 #mode ev' + -.
 
 ev'/lam:
-  ev (lam \x. E x) (lam \x. E x).
+  ev' (lam \x. E x) (lam \x. E x).
 ev'/app:
-  ev (app E1 E2) V
-    <<- ev E1 V1
-    <<- ev E2 V2
+  ev' (app E1 E2) V
+    <<- ev' E1 V1
+    <<- ev' E2 V2
     <<- V1 == lam \x. E x
-    <<- ev (E V2) V.      
+    <<- ev' (E V2) V.      

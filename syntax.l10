@@ -1,15 +1,12 @@
+// Constant identifiers
 cid: extensible.
-
-// Need a boolean type (make this internalized?)
-bool: type. #type bool transparent.
-true: bool.
-false: bool.
 
 // Permeability
 perm: type. #type perm transparent.
 per: perm.
 aff: perm.
 lin: perm.
+ord: perm.
 
 // First-order terms (Spine-form LF)
 exp: type. #type exp transparent.
@@ -18,8 +15,9 @@ spine: type. #type spine transparent.
 knd: exp.
 typ: exp.           // LF kind
 nprop: exp.         // Negative SLS kind
-pprop: perm -> exp. // Positive SLS kind
+pprop: perm -> exp. // Positive SLS kind (per/aff/lin/ord)
 pi: string -> exp -> exp -> exp.
+pii: string -> exp -> exp -> exp.
 arrow: exp -> exp -> exp.
 var: nat -> spine -> exp.
 con: cid -> spine -> exp.
@@ -27,23 +25,24 @@ lam: string -> exp -> exp.
 
 nil: spine.
 app: exp -> spine -> spine.
+appi: exp -> spine -> spine.
 
 
 // First-order classifiers
-pos: type. #type pos transparent.
-neg: type. #type neg transparent.
+posProp: type. #type posProp transparent.
+negProp: type. #type negProp transparent.
 
-atomP: cid -> spine -> pos.
-down: perm -> neg -> pos.
-one: pos.
-fuse: pos -> pos -> pos.
-exists: string -> exp -> pos.
-unif: exp -> exp -> pos.
+atomP: cid -> spine -> posProp.
+down: perm -> negProp -> posProp.
+one: posProp.
+fuse: posProp -> posProp -> posProp.
+exists: string -> exp -> posProp.
+unif: exp -> exp -> posProp.
 
-atomN: cid -> spine -> neg.
-lax: pos -> neg.
-righti: pos -> neg -> neg.
-lefti: pos -> neg -> neg.
-with: neg -> neg -> neg.
-all: string -> exp -> neg -> neg.
-alli: string -> exp -> neg -> neg.
+atomN: cid -> spine -> negProp.
+lax: posProp -> negProp.
+righti: posProp -> negProp -> negProp.
+lefti: posProp -> negProp -> negProp.
+with: negProp -> negProp -> negProp.
+all: string -> exp -> negProp -> negProp.
+alli: string -> exp -> negProp -> negProp.
