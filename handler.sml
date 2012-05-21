@@ -12,9 +12,9 @@ sig
        rule: Symbol.symbol * NegProp.t -> unit}
        
    val register: string -> int -> handler -> unit
-   val syntax: string PosDatum.t -> unit
-   val condec: Symbol.symbol * Exp.t * Exp.t -> unit
-   val rule: Symbol.symbol * NegProp.t -> unit
+   val syntax: string PosDatum.t -> unit (* Called from frontend.sml *)
+   val condec: Symbol.symbol * Exp.t * Exp.t -> unit (* Called from recon.sml *)
+   val rule: Symbol.symbol * NegProp.t -> unit (* Called from recon.sml *)
 end
 
 structure Handle:> HANDLE = 

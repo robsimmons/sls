@@ -4,8 +4,15 @@ Group is
   ../lambda-reader/sources.cm
   ../twelf-recon/src/frontend/sources.cm
 
+  (* Core handler infrastructure *)
   syntax.l10.sml
   handler.sml
+  recon.sml
 
+  (* Mode checking *)
+  mode.sml
+
+  (* Frontend *)
   lex.sml
   parse.sml
+  frontend.sml

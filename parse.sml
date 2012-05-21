@@ -1,6 +1,7 @@
 signature PARSE =
 sig
-   val parse: string -> string PosDatum.t Stream.stream
+   exception Parse of Pos.t * string
+   val parse: (string * Pos.t) Stream.stream -> string PosDatum.t Stream.stream
 end
 
 structure Parse:> PARSE = 
@@ -74,7 +75,7 @@ struct
                    stream_transform (demand "." ds_pos str))
             end)))
 
-   fun parse file = 
+   fun parse str = 
       Stream.lazy (fn () => (
-      Stream.front (stream_transform (Stream.front (Lex.tokenizeFile file)))))
+      Stream.front (stream_transform (Stream.front str))))
 end
