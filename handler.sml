@@ -20,14 +20,14 @@ end
 structure Handle:> HANDLE = 
 struct
    type handler =
-      {rawsyntax: string PosDatum.t -> unit,
+      {syntax: string PosDatum.t -> unit,
        condec: Symbol.symbol * Exp.t * Exp.t -> unit,
        rule: Symbol.symbol * NegProp.t -> unit}
 
    val table: (string * handler) list IntRedBlackDict.dict ref 
       = ref IntRedBlackDict.empty
 
-   fun registerSyntax name order handler = 
+   fun register name order handler = 
       table := 
       IntRedBlackDict.insertMerge (!table) order
          [ (name, handler) ]

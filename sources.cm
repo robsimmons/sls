@@ -7,8 +7,5 @@ Group is
   syntax.l10.sml
   handler.sml
 
-  foo.l10.sml
-  bar.l10.sml
-
   lex.sml
   parse.sml
