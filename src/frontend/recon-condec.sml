@@ -2,30 +2,10 @@
 (* Author: Frank Pfenning *)
 (* Modified: Roberto Virga, Jeff Polakow *)
 
-functor ReconConDec (structure Global : GLOBAL
-                     (*! structure IntSyn' : INTSYN !*)
-                     structure Names : NAMES
-                     (*! sharing Names.IntSyn = IntSyn' !*)
-                     structure Abstract : ABSTRACT
-                     (*! sharing Abstract.IntSyn = IntSyn' !*)
-                     (*! structure Paths' : PATHS !*)
-                     structure ReconTerm' : RECON_TERM
-                     (*! sharing ReconTerm'.IntSyn = IntSyn' !*)
-                     (*! sharing ReconTerm'.Paths = Paths' !*)
-                     structure Constraints : CONSTRAINTS
-                     (*! sharing Constraints.IntSyn = IntSyn' !*)
-                     structure Strict : STRICT
-                     (*! sharing Strict.IntSyn = IntSyn' !*)
-                     (*! sharing Strict.Paths = Paths' !*)
-                     structure TypeCheck : TYPECHECK
-                     (*! sharing TypeCheck.IntSyn = IntSyn' !*)
-                     structure Timers : TIMERS
-                     structure Print : PRINT
-                     (*! sharing Print.IntSyn = IntSyn' !*)
-                     structure Msg : MSG
-                       )
-  : RECON_CONDEC =
+structure ReconConDec: RECON_CONDEC =
 struct
+  structure ReconTerm' = ReconTerm
+
   (*! structure IntSyn = IntSyn' !*)
   (*! structure Paths = Paths' !*)
   structure ExtSyn = ReconTerm'
