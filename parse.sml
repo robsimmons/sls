@@ -16,24 +16,55 @@ struct
      | series [x] = (x, Schema.DONE ())
      | series (x :: xs) = (x, Schema.MUST_SEE [ series xs ])
 
-   fun series_longest [] = raise Fail "Invariant (series_longest)"
-     | series_longest [x] = (x, Schema.MAY_SEE ([], ()))
-     | series_longest (x :: xs) = (x, Schema.MUST_SEE [ series_longest xs ]) 
-
-   val optional_annotation_binding = 
+   fun optional_annotation_binding extras = 
       Schema.MUST_SEE 
-       [ (".", Schema.MAY_SEE ([], ())),
-         (":", Schema.MUST_SEE [ (".", Schema.MAY_SEE ([], ())) ]) ]
+       [ (".", Schema.MAY_SEE ([], extras, ())),
+         (":", Schema.MUST_SEE [ (".", Schema.MAY_SEE ([], extras, ())) ]) ]
 
    val sls_schema = 
       [
         series ["(", ")"],
         series ["{", "}"],
 
-        ("All", optional_annotation_binding),
-        ("Pi", optional_annotation_binding),
-        ("Exists", optional_annotation_binding),
-        ("\\", optional_annotation_binding)
+        ("All", optional_annotation_binding []),
+        ("Pi", optional_annotation_binding []),
+        ("Exists", optional_annotation_binding []),
+        ("\\", optional_annotation_binding 
+                  [">->", "->>", "-o", "->", "<-<", "<<-", "o-", "<-", "=="]),
+
+        (* Fixity 1 *)
+        ("&", Schema.DONE ()),
+        
+        (* Fixity 2 *)
+        ("<-<", Schema.DONE ()),
+        ("<<-", Schema.DONE ()),
+        ("o-", Schema.DONE ()),
+        ("<-", Schema.DONE ()),
+
+        (* Fixity 3 *)
+        ("->>", Schema.DONE ()),
+        ("-o", Schema.DONE ()),
+        ("->", Schema.DONE ()),
+        (">->", Schema.DONE ()),
+
+        (* Fixity 4 *)
+        ("*", Schema.DONE ()),
+
+        (* Fixity 5 *)
+        ("==", Schema.DONE ()),
+        ("!", Schema.DONE ()),
+        ("@", Schema.DONE ()),
+        ("$", Schema.DONE ()),
+
+        (* Application is fixity 6 *)
+
+        ("type", Schema.DONE ()),
+        ("one", Schema.DONE ()),
+        ("prop", Schema.MAY_SEE ([], [], ())),
+        ("ord", Schema.DONE ()),
+        ("lin", Schema.DONE ()),
+        ("aff", Schema.DONE ()),
+        ("pers", Schema.DONE ())
       ]
 
    exception Parse of Pos.pos * string

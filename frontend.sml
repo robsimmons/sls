@@ -1,8 +1,8 @@
 structure Frontend =
 struct
    fun init () = 
-    ( Handle.register "type reconstruction" 0 Recon.handler
-    ; Handle.register "mode checking" 5 Mode.handler
+    ( Handle.register "type reconstruction" 0 (Recon.init ())
+    ; Handle.register "mode checking" 5 (Mode.init ())
     ; ())
 
    fun loop str =

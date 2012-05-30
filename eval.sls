@@ -7,18 +7,18 @@ app: exp -> exp -> exp.
 #|
   Example 1: 
   Straightforward encoding of natural 
-  semantics. 
+  semantics (call-by-value). 
 |#
 
-value: exp -> prop.
+value: exp -> type.
 vlam: value (lam \x. E x).
 
 ev: exp -> exp -> prop. 
 #mode ev + -.
 
-ev/lam: 
+#rule ev/lam: 
   ev (lam \x. E x) (lam \x. E x).
-ev/app: 
+#rule ev/app: All V2: exp.
   ev (app E1 E2) V
     <<- ev E1 (lam \x. E x)
     <<- ev E2 V2
@@ -31,13 +31,13 @@ ev/app:
   are values. 
 |#
 
-evd: exp -> {v: exp} value v -> prop.
+evd: exp -> Pi v: exp. value v -> prop.
 #mode evd + - -.
 
-evd/lam: 
+#rule evd/lam: 
   evd (lam \x. E x) (lam \x. E x) vlam.
 
-evd/app: 
+#rule evd/app: 
   evd (app E1 E2) V D
     <<- evd E1 (lam \x. E x) vlam
     <<- evd E2 V2 _
@@ -53,11 +53,11 @@ evd/app:
 ev': exp -> exp -> prop.
 #mode ev' + -.
 
-ev'/lam:
+#rule ev'/lam:
   ev' (lam \x. E x) (lam \x. E x).
-ev'/app:
+#rule ev'/app:
   ev' (app E1 E2) V
     <<- ev' E1 V1
     <<- ev' E2 V2
-    <<- V1 == lam \x. E x
+    <<- lam \x. E x == V1
     <<- ev' (E V2) V.      

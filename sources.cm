@@ -4,6 +4,8 @@ Group is
   ../lambda-reader/sources.cm
   ../twelf-recon/src/frontend/sources.cm
 
+  fixity.sml (* Understands the concrete syntax of SLS *)
+
   (* Core handler infrastructure *)
   syntax.l10.sml
   handler.sml
@@ -14,5 +16,5 @@ Group is
 
   (* Frontend *)
   lex.sml
-  parse.sml
+  parse.sml (* Understands the binding structure of SLS *)
   frontend.sml

@@ -13,7 +13,7 @@ struct
  
    fun modeCheck _ = ()
 
-   val handler = 
+   fun init () = 
       {syntax = 
           (fn (PosDatum.List [("mode", dats, pos)]) => handleMode (dats, pos)
             | _ => ()),
