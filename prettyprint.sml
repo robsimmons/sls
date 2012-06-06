@@ -92,10 +92,23 @@ struct
             lp np^"All "^x^": "^exp' t^". "^neg false nprop^rp np
        | NegProp.Alli (x, t, nprop) => neg np nprop
 
+   val cProp = Symbol.fromValue "prop"
+   val cOrd = Symbol.fromValue "ord"
+   val cAff = Symbol.fromValue "aff"
+   val cLin = Symbol.fromValue "lin"
+   val cPers = Symbol.fromValue "pers"
+   val cType = Symbol.fromValue "type"
+   fun printCondec (c, tm, _) = 
+      if Exp.eq (Exp.Typ, tm) 
+         andalso (Symbol.eq (c, cProp) orelse Symbol.eq (c, cOrd)
+                  orelse Symbol.eq (c, cAff) orelse Symbol.eq (c, cLin)
+                  orelse Symbol.eq (c, cPers) orelse Symbol.eq (c, cType))
+      then () 
+      else print (Symbol.toValue c^": "^exp false tm^".\n")
+
    fun init () = 
       {syntax = ignore,
-       condec = fn (c, tm, _) => 
-                   print (Symbol.toValue c^": "^exp false tm^".\n"),
+       condec = printCondec,
        rule = fn (r, nprop) => 
                    print (Symbol.toValue r^": "^neg false nprop^".\n"),
        reset = ignore}
