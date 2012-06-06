@@ -4,7 +4,7 @@
 structure Global :> GLOBAL =
 struct
 
-  val chatter = ref 3
+  val chatter = ref 0
   val style = ref 0
   val maxCid = 19999
   val maxMid = 999
