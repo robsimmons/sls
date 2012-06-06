@@ -532,7 +532,7 @@ struct
    in
     ( cidLookup := IntRedBlackDict.insert (!cidLookup) cid s'
     ; Handle.condec (s', exp, class)
-    ; print (s^": "^Exp.toString exp^".\n")
+    (* ; print (s^": "^Exp.toString exp^".\n") *)
     ; cid)
    end
 
@@ -551,7 +551,7 @@ struct
           | _ => raise Fail "Unexpected condec"
    in
     ( Handle.rule (s', rule)
-    ; print ("#rule "^s^": "^NegProp.toString rule^".\n"))
+    (* ; print ("#rule "^s^": "^NegProp.toString rule^".\n") *))
    end
 
    fun set () = 

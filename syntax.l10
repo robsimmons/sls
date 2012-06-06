@@ -36,13 +36,13 @@ pAtom: perm -> cid -> spine -> posProp.
 down: perm -> negProp -> posProp.
 one: posProp.
 fuse: posProp -> posProp -> posProp.
-exists: string -> exp -> posProp.
+exists: string -> exp -> posProp -> posProp.
 unif: exp -> exp -> posProp.
 
 nAtom: cid -> spine -> negProp.
 lax: posProp -> negProp.
-righti: posProp -> negProp -> negProp.
 lefti: posProp -> negProp -> negProp.
+righti: posProp -> negProp -> negProp.
 with: negProp -> negProp -> negProp.
 all: string -> exp -> negProp -> negProp.
 alli: string -> exp -> negProp -> negProp.

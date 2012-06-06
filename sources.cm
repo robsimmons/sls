@@ -19,6 +19,9 @@ Group is
   (* Mode checking *)
   mode.sml
 
+  (* Pretty-printing *)
+  prettyprint.sml
+
   (* Frontend *)
   lex.sml
   parse.sml (* Understands the binding structure of SLS *)
