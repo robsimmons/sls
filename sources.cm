@@ -9,6 +9,11 @@ Group is
   (* Core handler infrastructure *)
   syntax.l10.sml
   handler.sml
+
+  (* Populating the signature *)
+  signat.sml
+
+  (* Type reconstruction (which invokes the handlers in a privileged way) *)
   recon.sml
 
   (* Mode checking *)

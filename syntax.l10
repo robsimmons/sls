@@ -19,7 +19,7 @@ pprop: perm -> exp. // Positive SLS kind (per/aff/lin/ord)
 pi: string -> exp -> exp -> exp.
 pii: string -> exp -> exp -> exp.
 arrow: exp -> exp -> exp.
-var: nat -> spine -> exp.
+var: string -> nat -> spine -> exp.
 con: cid -> spine -> exp.
 lam: string -> exp -> exp.
 
@@ -46,3 +46,11 @@ lefti: posProp -> negProp -> negProp.
 with: negProp -> negProp -> negProp.
 all: string -> exp -> negProp -> negProp.
 alli: string -> exp -> negProp -> negProp.
+
+
+
+wSignat: cid -> world.
+signat: {C: cid} exp -> exp -> rel @ wSignat C.
+rules: {R: cid} negProp -> rel @ wSignat R.
+#query lookup: signat + - -.
+#query lookupRule: rules + -.
