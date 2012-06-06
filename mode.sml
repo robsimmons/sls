@@ -18,5 +18,6 @@ struct
           (fn (PosDatum.List [("mode", dats, pos)]) => handleMode (dats, pos)
             | _ => ()),
        condec = ignore,
-       rule = modeCheck}
+       rule = modeCheck,
+       reset = ignore}
 end

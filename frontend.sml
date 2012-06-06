@@ -23,4 +23,6 @@ struct
 
    fun load file =
       loop (Parse.parse (Lex.tokenizeFile file))
+
+   fun reset () = Handle.reset ()
 end

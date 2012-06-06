@@ -30,5 +30,8 @@ of/inc:
   check (inc R) base 
     <- synth R base.
 
-foo: (atom -> atom -> atom -> atom -> atom -> norm) -> type.
-bar: foo (\foo. \foo. \bar1. \bar1. \bar1. inc foo).
+foo: (atom -> atom -> atom -> atom -> atom -> norm) -> prop.
+bar: foo (\foo. \foo. \bar1. \bar1. \bar1. inc bar1).
+
+baz: norm -> prop.
+bee: baz (lam (\x. E x)).

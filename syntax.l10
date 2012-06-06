@@ -3,7 +3,7 @@ cid: extensible.
 
 // Permeability
 perm: type. #type perm transparent.
-per: perm.
+pers: perm.
 aff: perm.
 lin: perm.
 ord: perm.
@@ -14,8 +14,8 @@ spine: type. #type spine transparent.
 
 knd: exp.
 typ: exp.           // LF kind
-nprop: exp.         // Negative SLS kind
-pprop: perm -> exp. // Positive SLS kind (per/aff/lin/ord)
+nProp: exp.         // Negative SLS kind
+pProp: perm -> exp. // Positive SLS kind (per/aff/lin/ord)
 pi: string -> exp -> exp -> exp.
 pii: string -> exp -> exp -> exp.
 arrow: exp -> exp -> exp.
@@ -32,14 +32,14 @@ appi: exp -> spine -> spine.
 posProp: type. #type posProp transparent.
 negProp: type. #type negProp transparent.
 
-atomP: cid -> spine -> posProp.
+pAtom: perm -> cid -> spine -> posProp.
 down: perm -> negProp -> posProp.
 one: posProp.
 fuse: posProp -> posProp -> posProp.
 exists: string -> exp -> posProp.
 unif: exp -> exp -> posProp.
 
-atomN: cid -> spine -> negProp.
+nAtom: cid -> spine -> negProp.
 lax: posProp -> negProp.
 righti: posProp -> negProp -> negProp.
 lefti: posProp -> negProp -> negProp.
@@ -49,8 +49,25 @@ alli: string -> exp -> negProp -> negProp.
 
 
 
+// Analyzing LF expressions
+wExp: exp -> world.
+
+headClass: {E: exp} exp -> rel @ wExp E.
+headClass knd knd.
+headClass typ typ.
+headClass nProp nProp.
+headClass (pProp Perm) (pProp Perm).
+headClass (pii _ _ E) Eh <- headClass E Eh.
+headClass (pi  _ _ E) Eh <- headClass E Eh.
+headClass (arrow _ E) Eh <- headClass E Eh.
+
+// Storing the signature
 wSignat: cid -> world.
 signat: {C: cid} exp -> exp -> rel @ wSignat C.
 rules: {R: cid} negProp -> rel @ wSignat R.
 #query lookup: signat + - -.
 #query lookupRule: rules + -.
+
+classify: {C: cid} exp -> rel @ wSignat C.
+classify C Eh <- signat C E _, headClass E Eh.
+#query lookupClass: classify + -.

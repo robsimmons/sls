@@ -18,6 +18,21 @@ struct
    (* Internal map from cids to symbols *)
    val cidLookup: Symbol.symbol IntRedBlackDict.dict ref = 
       ref IntRedBlackDict.empty
+   fun getcid i = IntRedBlackDict.lookup (!cidLookup) i
+
+
+
+   fun ctxToString ctx = 
+      String.concatWith ", " (map (fn (SOME (x,t)) => x^":"^Exp.toString t
+                                    | NONE => "_") ctx)
+   fun getvar ctx n = 
+      if n > length ctx 
+      then raise Fail ("Cannot look up deBrujn index "^Int.toString n^" in ["
+                       ^ctxToString ctx^"]")
+      else if n < 1 then raise Fail ("Invalid de Bruijn index"^Int.toString n)
+      else (case List.nth (ctx, n-1) of
+               NONE => raise Fail ("De Bruijn "^Int.toString n^" not dependent")
+             | SOME (x, t) => (x, t))
 
 
 
@@ -78,51 +93,78 @@ struct
 
 
    (* Read reconstructed Twelf syntax into the L10 LF representation *) 
-   fun reconExp n ctx exp: Exp.t = 
+   fun reconExp' replace n ctx exp: Exp.t = 
       case exp of 
-         IntSyn.Uni (IntSyn.Kind) => Exp.Knd
-       | IntSyn.Uni (IntSyn.Type) => Exp.Typ
-       | IntSyn.Pi ((IntSyn.Dec (NONE, exp1), No), exp2) => 
-            Exp.Arrow (reconExp 0 ctx exp1, reconExp n (NONE :: ctx) exp2)
-       | IntSyn.Pi ((IntSyn.Dec (SOME x, exp1), Yes), exp2) => 
+         IntSyn.Uni (IntSyn.Kind) => 
+           (if Option.isSome replace then raise Fail "Internal error"
+            else Exp.Knd)
+       | IntSyn.Uni (IntSyn.Type) => 
+           (case replace of 
+               NONE => Exp.Typ
+             | SOME knd => knd) (* prop/propord/proppers/etc. *)
+       | IntSyn.Pi ((IntSyn.Dec (NONE, exp1), IntSyn.No), exp2) => 
+            Exp.Arrow (reconExp 0 ctx exp1, 
+                       reconExp' replace n (NONE :: ctx) exp2)
+       | IntSyn.Pi ((IntSyn.Dec (SOME x, exp1), IntSyn.Maybe), exp2) => 
          let
             val x = unique ctx x 
             val t = reconExp 0 ctx exp1
          in if n=0
-            then Exp.Pi (x, t, reconExp n (SOME (x, t) :: ctx) exp2) 
-            else Exp.Pii (x, t, reconExp (n-1) (SOME (x, t) :: ctx) exp2)
+            then Exp.Pi (x, t, reconExp' replace n (SOME (x, t) :: ctx) exp2) 
+            else Exp.Pii (x, t, 
+                          reconExp' replace (n-1) (SOME (x, t) :: ctx) exp2)
          end
        | IntSyn.Root (IntSyn.BVar i, sp) =>
-         let val (x, t) = valOf (List.nth (ctx, i-1))
-         in Exp.Var (x, IntInf.fromInt i, reconSpine ctx sp t) 
+         let
+            val (x, t) = getvar ctx i
+            val () = print ("ROOT: "^x^"("^Int.toString i^")\n")
+         in 
+           (if Option.isSome replace then raise Fail "Internal error"
+            else Exp.Var (x, IntInf.fromInt i-1, #1 (reconSpine ctx sp t)))
          end
        | IntSyn.Root (IntSyn.Const cid, sp) =>
-         let val cid' = IntRedBlackDict.lookup (!cidLookup) cid
-         in Exp.Con (cid', reconSpine ctx sp (Signature.lookup cid')) 
+         let 
+            val cid' = getcid cid
+            val () = print ("ROOT: "^Symbol.toValue cid'^"\n")
+         in 
+           (if Option.isSome replace then raise Fail "Internal error" 
+            else Exp.Con (cid', #1 (reconSpine ctx sp (Signature.lookup cid'))))
          end
        | IntSyn.Lam (IntSyn.Dec (SOME x, exp1), exp2) =>
          let
             val x = unique ctx x 
             val t = reconExp 0 ctx exp1
-         in Exp.Lam (x, reconExp n (SOME (x, t) :: ctx) exp2)
+            val () = print ("LAMBDA: "^x^"\n")
+         in Exp.Lam (x, reconExp' replace n (SOME (x, t) :: ctx) exp2)
          end
        | _ => raise Fail "Unexpected reconstruction term"
 
-   and reconSpine ctx sp t: Spine.t = 
-      case (sp, t) of 
-         (IntSyn.Nil, Exp.Con _) => Spine.Nil
-       | (IntSyn.Nil, Exp.Typ) => Spine.Nil
-       | (IntSyn.Nil, Exp.Nprop) => Spine.Nil
-       | (IntSyn.Nil, Exp.Pprop _) => Spine.Nil
+   and reconExp n ctx exp: Exp.t = reconExp' NONE n ctx exp
+
+   and reconSpine ctx sp t: Spine.t * Exp.t = 
+    ( print ("SPINE OF: "^Exp.toString t^"\n")
+    ; case (sp, t) of 
+         (IntSyn.Nil, Exp.Con _) => (Spine.Nil, t)
+       | (IntSyn.Nil, Exp.Typ) => (Spine.Nil, t)
+       | (IntSyn.Nil, Exp.NProp) => (Spine.Nil, t)
+       | (IntSyn.Nil, Exp.PProp _) => (Spine.Nil, t)
        | (IntSyn.App (exp, sp), Exp.Pii (_, _, t)) => 
-            Spine.Appi (reconExp 0 ctx exp, reconSpine ctx sp t)
+         let val (sp', t') = reconSpine ctx sp t
+         in (Spine.Appi (reconExp 0 ctx exp, sp'), t') 
+         end
        | (IntSyn.App (exp, sp), Exp.Pi (_, _, t)) => 
-            Spine.App (reconExp 0 ctx exp, reconSpine ctx sp t)
+         let val (sp', t') = reconSpine ctx sp t
+         in (Spine.App (reconExp 0 ctx exp, sp'), t')
+         end
        | (IntSyn.App (exp, sp), Exp.Arrow (_, t)) => 
-            Spine.App (reconExp 0 ctx exp, reconSpine ctx sp t)
+         let val (sp', t') = reconSpine ctx sp t
+         in (Spine.App (reconExp 0 ctx exp, sp'), t')
+         end
        | (IntSyn.SClo _, _) => raise Fail "Did not expect an SClo"
-       | _ => raise Fail ("Type error in reconSpine, type [" 
-                          ^Exp.toString t^"]") 
+       | (IntSyn.App _, _) => raise Fail ("Type error in reconSpine, type [" 
+                                          ^Exp.toString t^"] (internal)")
+       | (IntSyn.Nil, _) => raise Fail ("Type error in reconSpine, type [" 
+                                        ^Exp.toString t^"] (internal)"))
 
 
 
@@ -199,7 +241,7 @@ struct
        | _ => raise Fail ("Bad SLS syntax: "^LDatum.toString dat)
    end
 
-   (* Come up with a fake LF type to force Twelf to do full dependent type 
+   (* Come up with a fake LF type to force Twelf to do dependent type 
     * reconstruction on a declaration in full. *)
    (* A weird type name "type" won't ever get in the way of anything, right? *)
    val fakeEnd = ReconTerm.ucid ([], "type", r)
@@ -241,8 +283,180 @@ struct
        | LDatum.Node ("mobile", [dat], pos) => ruleToFakeLF dat cont
        | LDatum.Node ("monad", [dat], pos) => ruleToFakeLF dat cont
 
-       | LDatum.Node ("unify", _, _) => raise Fail "Can't handle unify"
+       | LDatum.Node ("unify", _, _) => cont (* No output for unify *)
        | _ => raise Fail ("Impossible?")
+
+
+
+   (* Read reconstructed fake-Twelf syntax along with unreconstructed
+    * rule syntax into the L10 SLS representation *) 
+   val cidFakeType = ref ~1
+   (* datatype modalAtomicProps = EITHER_WAY
+   val modalAtomicProps := ref EITHER_WAY *)
+
+   fun requireArrow exp =
+      case exp of 
+         IntSyn.Pi ((IntSyn.Dec (NONE, exp), IntSyn.No), expcont) =>
+            (exp, expcont)
+       | _ => raise Fail "Internal error"
+
+   fun requireType exp = 
+      case exp of 
+         IntSyn.Root (IntSyn.Const cid, IntSyn.Nil) =>
+            if cid = !cidFakeType then () else raise Fail "Internal error"
+       | _ => raise Fail "Internal error"
+
+   (* Get the implicitly bound variables from Twelf *)
+   fun reconImplicit 0 ctx (dat: (string, ReconTerm.term) LDatum.t) exp = 
+         let val (nprop, expcont) = reconNeg ctx dat exp
+         in
+          ( requireType expcont
+          ; nprop)
+         end
+     | reconImplicit n ctx dat exp = 
+         (case exp of  
+             IntSyn.Pi ((IntSyn.Dec (SOME x, exp1), IntSyn.Maybe), exp2) => 
+             let
+                val x = unique ctx x 
+                val t = reconExp 0 ctx exp1
+             in NegProp.Alli 
+                   (x, t, reconImplicit (n-1) (SOME (x, t) :: ctx) dat exp2)
+             end
+           | _ => raise Fail "Unexpected implicit type structure")
+
+   (* Reconstruct an atom, positive or negative *)
+   and reconAtom ctx pos expcont = 
+      let 
+         val (exp0, expcont) = requireArrow expcont
+         val (cid, sp) = 
+            case exp0 of 
+               IntSyn.Root (IntSyn.Const cid, sp) => (cid, sp)
+             | IntSyn.Root (IntSyn.BVar i, sp) => 
+                  raise Fail ("Variable '"^ #1 (getvar ctx i)
+                              ^"' found where a predicate was expected")
+             | _ => 
+                  raise Fail ("Weird inclusion of LF syntax into an SLS \
+                              \proposition (most likely a 'Pi x.' instead \
+                              \of an 'All x.'): "^Pos.toString pos)
+         val cid' = getcid cid
+         val () = print ("PREDICATE: "^Symbol.toValue cid'^"\n")
+         val (sp', t') = reconSpine ctx sp (Signature.lookup cid')
+      in
+         case t' of
+            Exp.Con (a, _) => raise Fail "Internal error" (* Twelf TC *)
+          | Exp.Typ => raise Fail ("Found LF type constructor where predicate \
+                                   \was expected: "^Pos.toString pos)
+          | Exp.NProp => (Sum.INL (cid', sp'), expcont)
+          | Exp.PProp perm => (Sum.INR (perm, cid', sp'), expcont)
+          | _ => raise Fail "Internal error"
+      end 
+
+   and reconPos ctx (dat: (string, ReconTerm.term) LDatum.t) expcont = 
+      case dat of 
+         LDatum.Atom (_, pos) => 
+         let val (atom, expcont) = reconAtom ctx pos expcont
+         in case (atom, ()) of
+               (Sum.INL x, _) =>
+                  (PosProp.Down (Perm.Ord, NegProp.NAtom x), expcont)
+             | (Sum.INR x, _) =>
+                  (PosProp.PAtom x, expcont)
+         end
+
+       | LDatum.Node ("tensor", [dat1, dat2], pos) =>
+         let 
+            val (pprop1, expcont) = reconPos ctx dat1 expcont
+            val (pprop2, expcont) = reconPos ctx dat2 expcont
+         in (PosProp.Fuse (pprop1, pprop2), expcont)
+         end
+   
+       | LDatum.Node ("bang", [dat], pos) =>
+         let val (nprop, expcont) = reconNeg ctx dat expcont
+         in (PosProp.Down (Perm.Pers, nprop), expcont)
+         end
+
+       | LDatum.Node ("at", [dat], pos) =>
+         let val (nprop, expcont) = reconNeg ctx dat expcont
+         in (PosProp.Down (Perm.Aff, nprop), expcont)
+         end
+
+       | LDatum.Node ("mobile", [dat], pos) =>
+         let val (nprop, expcont) = reconNeg ctx dat expcont
+         in (PosProp.Down (Perm.Lin, nprop), expcont)
+         end
+
+       | _ =>
+         let val (nprop, expcont) = reconNeg ctx dat expcont
+         in (PosProp.Down (Perm.Ord, nprop), expcont)
+         end
+
+   and reconNeg ctx (dat: (string, ReconTerm.term) LDatum.t) expcont = 
+      case dat of
+         LDatum.Atom (_, pos) => 
+         let val (atom, expcont) = reconAtom ctx pos expcont
+         in case atom of 
+               Sum.INL x => (NegProp.NAtom x, expcont)
+             | Sum.INR (_, cid, _) => 
+                  raise Fail ("Constant"^Symbol.toValue cid^"' constructs \
+                              \positive atomic propositions, but a negative\
+                              \atomic proposition was expected here.")
+         end
+
+       | LDatum.Node ("monad", [dat], pos) => 
+         let 
+            val (pprop, expcont) = reconPos ctx dat expcont
+         in (NegProp.Lax pprop, expcont)
+         end
+
+       | LDatum.Node ("forall", dats, pos) =>
+          let
+             val (exp0, expcont) = requireArrow expcont
+             val (x, exp1, exp2) = 
+                case exp0 of 
+                   IntSyn.Pi ((IntSyn.Dec (SOME x, exp1), IntSyn.Maybe), exp2) =>
+                      (x, exp1, exp2)
+                 | IntSyn.Pi _ => 
+                      raise Fail ("Universally quantified variable \
+                                  \is not free in rule: "
+                                  ^Pos.toString (LDatum.pos (hd dats)))
+                 | _ => raise Fail "Internal error"
+
+             val x = unique ctx x 
+             val t = reconExp 0 ctx exp1 
+             val (nprop1, expcont') = 
+                reconNeg (SOME (x, t) :: ctx) (List.last dats) exp2 
+          in 
+            ( requireType expcont'
+            ; (NegProp.Alli (x, t, nprop1), expcont))
+          end
+
+       | LDatum.Node ("with", [dat1, dat2], pos) => 
+         let
+            val (nprop1, expcont) = reconNeg ctx dat1 expcont
+            val (nprop2, expcont) = reconNeg ctx dat2 expcont
+         in (NegProp.With (nprop1, nprop2), expcont)
+         end
+
+       | LDatum.Node ("lefti", [dat1, dat2], pos) => 
+         let
+            val (pprop1, expcont) = reconPos ctx dat1 expcont
+            val (nprop2, expcont) = reconNeg ctx dat2 expcont
+         in (NegProp.Lefti (pprop1, nprop2), expcont)
+         end
+
+       | LDatum.Node ("righti", [dat1, dat2], pos) => 
+         let
+            val (pprop1, expcont) = reconPos ctx dat1 expcont
+            val (nprop2, expcont) = reconNeg ctx dat2 expcont
+         in (NegProp.Righti (pprop1, nprop2), expcont)
+         end
+
+       | LDatum.Node (lab, _, pos) => 
+            raise Fail ("Reconstruction error: unexpected '"^lab
+                        ^"' where a negative proposition was expected: "
+                        ^Pos.toString pos)
+
+       | LDatum.List _ => raise Fail "Internal error"
+
 
 
    (* Effect: initializes Twelf's reconstruction facilities appropriately *)
@@ -251,20 +465,43 @@ struct
    val cidLin = ref ~1
    val cidPers = ref ~1
 
-   fun handleCondec (s, dats, pos) = 
+
+   (* (dat, INL NONE) <- reconstruct as a term constructor
+    * (dat, INL (SOME knd)) <- reconstruct as a [knd] constructor
+    * (dat, INR ()) <- reconstruct as a rule *)
+   fun preprocess dats = 
+   let 
+      val dat = Fixity.resolve dats
+      fun traverse dat = 
+         case dat of 
+            LDatum.Atom (s, pos) => 
+              (case Signature.findClass (Symbol.fromValue s) of
+                  NONE => raise Fail ("Unknown type family/predicate '"
+                                      ^s^"'"^Pos.toString pos)
+                | SOME Exp.Typ => Sum.INL NONE (* It's a term constant! *)
+                | SOME Exp.NProp => Sum.INR () (* It's a rule \! *)
+                | SOME exp => raise Fail ("The head of a constant or rule \
+                                          \must be be a type or negative \ 
+                                          \proposition: "^Pos.toString pos))
+          | LDatum.Node ("type", [], pos) => Sum.INL (SOME Exp.Typ)
+          | LDatum.Node ("prop", [], pos) => Sum.INL (SOME Exp.NProp)
+          | LDatum.Node ("ord", [], pos) => Sum.INL (SOME (Exp.PProp Perm.Ord))
+          | LDatum.Node ("lin", [], pos) => Sum.INL (SOME (Exp.PProp Perm.Lin))
+          | LDatum.Node ("aff", [], pos) => Sum.INL (SOME (Exp.PProp Perm.Aff))
+          | LDatum.Node ("pers", [], pos) => 
+               Sum.INL (SOME (Exp.PProp Perm.Pers))
+          | LDatum.Node ("arrow", [d1, d2], pos) => traverse d2
+          | LDatum.Node ("pi", dats, pos) => traverse (List.last dats)
+          | LDatum.Node ("lambda", dats, pos) => traverse (List.last dats)
+          | LDatum.List (dat :: dats, pos) => traverse dat
+          | _ => raise Fail ("Bad LF syntax: "^LDatum.toString dat)
+   in
+      (dat, traverse dat)
+   end
+
+   fun handleCondec (s, dat, class, pos) = 
    let
       val s' = Symbol.fromValue s
-
-      (* Some of the things Twelf classifies as Type are SLS kinds *)
-      fun classifier (IntSyn.Root (IntSyn.Const cid, _)) =
-            (if cid = !cidProp
-                orelse cid = !cidOrd
-                orelse cid = !cidLin
-                orelse cid = !cidPers
-             then Exp.Knd
-             else Exp.Typ)
-        | classifier (IntSyn.Pi (_, exp)) = classifier exp
-        | classifier _ = raise Fail "Unexpected classifier"
 
       (* Install a condec into Twelf *)
       fun installTwelf NONE = raise Fail "Anonymous definition?"
@@ -282,21 +519,16 @@ struct
              cid
           end
 
-      val dat = Fixity.resolve dats
       val syn = datToSyn dat
       val (condec, _) = ReconConDec.condecToConDec 
                            (ReconConDec.condec (s, syn), l, false)
       val cid = installTwelf condec
-      val (exp, class) = 
+      val exp = 
          case condec of 
             (SOME (IntSyn.ConDec (_, NONE, i, IntSyn.Normal, exp, uni))) =>
-              (case uni of 
-                  IntSyn.Kind => (* Definitely a type *)
-                     (reconExp i [] exp, Exp.Knd)
-                | IntSyn.Type => (* Might be a proposition! *) 
-                     (reconExp i [] exp, classifier exp))
+               reconExp' class i [] exp
           | _ => raise Fail "Unexpected condec"
-            
+      val class = case class of NONE => Exp.Typ | SOME _ => Exp.Knd
    in
     ( cidLookup := IntRedBlackDict.insert (!cidLookup) cid s'
     ; Handle.condec (s', exp, class)
@@ -304,38 +536,75 @@ struct
     ; cid)
    end
 
-   fun handleRule (s, dats, pos) = 
+   fun handleRule (s, dat, pos) = 
    let
-      val dat = Fixity.resolve dats
+      val s' = Symbol.fromValue s
+
       val rule = datToRule dat
       val syn = ruleToFakeLF rule fakeEnd
-      val condec = ReconConDec.condecToConDec
-                      (ReconConDec.condec (".", syn), l, false)
+      val (condec, _) = ReconConDec.condecToConDec
+                           (ReconConDec.condec (".", syn), l, false)
+      val rule = 
+         case condec of 
+            (SOME (IntSyn.ConDec (_, NONE, i, IntSyn.Normal, exp, uni))) =>
+               reconImplicit i [] rule exp
+          | _ => raise Fail "Unexpected condec"
    in
-    ( print ("#rule "^s^": ")
-    ; print (LDatum.toString dat)
-    ; print ".\n")
+    ( Handle.rule (s', rule)
+    ; print ("#rule "^s^": "^NegProp.toString rule^".\n"))
+   end
+
+   fun set () = 
+   let val ty = Fixity.resolve [PosDatum.List [("type", [], fake_pos)]]
+   in
+    ( cidProp := handleCondec ("prop", ty, NONE, fake_pos)
+    ; cidOrd  := handleCondec ("ord", ty, NONE, fake_pos)
+    ; cidLin  := handleCondec ("lin", ty, NONE, fake_pos)
+    ; cidPers := handleCondec ("pers", ty, NONE, fake_pos)
+    ; cidFakeType := handleCondec ("type", ty, NONE, fake_pos))
    end
 
    fun init () = 
-   let val ty = [PosDatum.List [("type", [], fake_pos)]]
-   in
-    ( cidProp := handleCondec ("prop", ty, fake_pos)
-    ; cidOrd  := handleCondec ("ord", ty, fake_pos)
-    ; cidLin  := handleCondec ("lin", ty, fake_pos)
-    ; cidPers := handleCondec ("pers", ty, fake_pos)
-    ; handleCondec ("type", ty, fake_pos)
+    ( set ()
     ; {syntax = 
           (fn (PosDatum.List [("condec", [PosDatum.Atom (s, _)], pos1), 
                                (":", dats, pos2)]) =>
-                 (ignore o handleCondec) (s, dats, Pos.union pos1 pos2)
+                 (case preprocess dats of
+                    (dat, Sum.INL class) => 
+                       (ignore o handleCondec) 
+                          (s, dat, class, Pos.union pos1 pos2)
+                  | (dat, Sum.INR ()) => 
+                       handleRule (s, dat, Pos.union pos1 pos2))
+
             | (PosDatum.List [("rule", (PosDatum.Atom (s, _)
                                          :: PosDatum.Atom (":", _) 
                                          :: dats),
                                 pos)]) => 
-                 handleRule (s, dats, pos)
+                 handleRule (s, Fixity.resolve dats, pos)
+
             | _ => ()),
        condec = ignore,
-       rule = ignore})
-   end
+       rule = ignore,
+       reset = fn () =>
+                ( IntSyn.sgnReset ()
+                ; Names.reset ()
+                ; Origins.reset ()
+                (* ; ModeTable.reset () *)
+                (* ; UniqueTable.reset () (* -fp Wed Mar  9 20:24:45 2005 *) *)
+                ; Index.reset ()
+                ; IndexSkolem.reset ()
+                ; Subordinate.reset ()
+                (* ; Total.reset ()     (* -fp *) *)
+                (* ; WorldSyn.reset ()  (* -fp *) *)
+                (* ; Reduces.reset ()   (* -bp *) *)
+                (* ; TabledSyn.reset () (* -bp *) *)
+                (* ; FunSyn.labelReset () *)
+                (* ; CompSyn.sProgReset () (* necessary? -fp; yes - bp*) *)
+                (* ; CompSyn.detTableReset () (*  -bp *) *)
+                ; Compile.sProgReset () (* resetting substitution trees *)
+
+                (* ; ModSyn.reset () *)
+                (* ; CSManager.resetSolvers () *)
+                (* ; Twelf.reset () *)
+                ; set ())})
 end
