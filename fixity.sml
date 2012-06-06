@@ -105,7 +105,7 @@ struct
 
           (* Fixity 4 *)
           | PosDatum.List [("*", [], _)] => 
-               mk Fix.Infixr 1 (fn a => fn b => node "tensor" a b)
+               mk Fix.Infixr 4 (fn a => fn b => node "tensor" a b)
 
           (* Fixity 5 *)
           | PosDatum.List [("==", [], pos)] => 

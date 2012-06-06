@@ -117,7 +117,7 @@ struct
        | IntSyn.Root (IntSyn.BVar i, sp) =>
          let
             val (x, t) = getvar ctx i
-            val () = print ("ROOT: "^x^"("^Int.toString i^")\n")
+            (* val () = print ("ROOT: "^x^"("^Int.toString i^")\n") *)
          in 
            (if Option.isSome replace then raise Fail "Internal error"
             else Exp.Var (x, IntInf.fromInt i-1, #1 (reconSpine ctx sp t)))
@@ -125,7 +125,7 @@ struct
        | IntSyn.Root (IntSyn.Const cid, sp) =>
          let 
             val cid' = getcid cid
-            val () = print ("ROOT: "^Symbol.toValue cid'^"\n")
+            (* val () = print ("ROOT: "^Symbol.toValue cid'^"\n") *)
          in 
            (if Option.isSome replace then raise Fail "Internal error" 
             else Exp.Con (cid', #1 (reconSpine ctx sp (Signature.lookup cid'))))
@@ -134,7 +134,7 @@ struct
          let
             val x = unique ctx x 
             val t = reconExp 0 ctx exp1
-            val () = print ("LAMBDA: "^x^"\n")
+            (* val () = print ("LAMBDA: "^x^"\n") *)
          in Exp.Lam (x, reconExp' replace n (SOME (x, t) :: ctx) exp2)
          end
        | _ => raise Fail "Unexpected reconstruction term"
@@ -142,8 +142,7 @@ struct
    and reconExp n ctx exp: Exp.t = reconExp' NONE n ctx exp
 
    and reconSpine ctx sp t: Spine.t * Exp.t = 
-    ( print ("SPINE OF: "^Exp.toString t^"\n")
-    ; case (sp, t) of 
+    ( case (sp, t) of 
          (IntSyn.Nil, Exp.Con _) => (Spine.Nil, t)
        | (IntSyn.Nil, Exp.Typ) => (Spine.Nil, t)
        | (IntSyn.Nil, Exp.NProp) => (Spine.Nil, t)
@@ -308,7 +307,7 @@ struct
 
    (* Get the implicitly bound variables from Twelf *)
    fun reconImplicit 0 ctx (dat: (string, ReconTerm.term) LDatum.t) exp = 
-         let val (nprop, expcont) = reconNeg ctx dat exp
+         let val (nprop, expcont, ctx) = reconNeg ctx dat exp
          in
           ( requireType expcont
           ; nprop)
@@ -339,7 +338,7 @@ struct
                               \proposition (most likely a 'Pi x.' instead \
                               \of an 'All x.'): "^Pos.toString pos)
          val cid' = getcid cid
-         val () = print ("PREDICATE: "^Symbol.toValue cid'^"\n")
+         (* val () = print ("PREDICATE: "^Symbol.toValue cid'^"\n") *)
          val (sp', t') = reconSpine ctx sp (Signature.lookup cid')
       in
          case t' of
@@ -357,36 +356,37 @@ struct
          let val (atom, expcont) = reconAtom ctx pos expcont
          in case (atom, ()) of
                (Sum.INL x, _) =>
-                  (PosProp.Down (Perm.Ord, NegProp.NAtom x), expcont)
+                  (PosProp.Down (Perm.Ord, NegProp.NAtom x), expcont, 
+                   NONE :: ctx)
              | (Sum.INR x, _) =>
-                  (PosProp.PAtom x, expcont)
+                  (PosProp.PAtom x, expcont, NONE :: ctx)
          end
 
        | LDatum.Node ("tensor", [dat1, dat2], pos) =>
          let 
-            val (pprop1, expcont) = reconPos ctx dat1 expcont
-            val (pprop2, expcont) = reconPos ctx dat2 expcont
-         in (PosProp.Fuse (pprop1, pprop2), expcont)
+            val (pprop1, expcont, ctx) = reconPos ctx dat1 expcont
+            val (pprop2, expcont, ctx) = reconPos ctx dat2 expcont
+         in (PosProp.Fuse (pprop1, pprop2), expcont, ctx)
          end
    
        | LDatum.Node ("bang", [dat], pos) =>
-         let val (nprop, expcont) = reconNeg ctx dat expcont
-         in (PosProp.Down (Perm.Pers, nprop), expcont)
+         let val (nprop, expcont, ctx) = reconNeg ctx dat expcont
+         in (PosProp.Down (Perm.Pers, nprop), expcont, ctx)
          end
 
        | LDatum.Node ("at", [dat], pos) =>
-         let val (nprop, expcont) = reconNeg ctx dat expcont
-         in (PosProp.Down (Perm.Aff, nprop), expcont)
+         let val (nprop, expcont, ctx) = reconNeg ctx dat expcont
+         in (PosProp.Down (Perm.Aff, nprop), expcont, ctx)
          end
 
        | LDatum.Node ("mobile", [dat], pos) =>
-         let val (nprop, expcont) = reconNeg ctx dat expcont
-         in (PosProp.Down (Perm.Lin, nprop), expcont)
+         let val (nprop, expcont, ctx) = reconNeg ctx dat expcont
+         in (PosProp.Down (Perm.Lin, nprop), expcont, ctx)
          end
 
        | _ =>
-         let val (nprop, expcont) = reconNeg ctx dat expcont
-         in (PosProp.Down (Perm.Ord, nprop), expcont)
+         let val (nprop, expcont, ctx) = reconNeg ctx dat expcont
+         in (PosProp.Down (Perm.Ord, nprop), expcont, ctx)
          end
 
    and reconNeg ctx (dat: (string, ReconTerm.term) LDatum.t) expcont = 
@@ -394,7 +394,7 @@ struct
          LDatum.Atom (_, pos) => 
          let val (atom, expcont) = reconAtom ctx pos expcont
          in case atom of 
-               Sum.INL x => (NegProp.NAtom x, expcont)
+               Sum.INL x => (NegProp.NAtom x, expcont, NONE :: ctx)
              | Sum.INR (_, cid, _) => 
                   raise Fail ("Constant"^Symbol.toValue cid^"' constructs \
                               \positive atomic propositions, but a negative\
@@ -403,8 +403,8 @@ struct
 
        | LDatum.Node ("monad", [dat], pos) => 
          let 
-            val (pprop, expcont) = reconPos ctx dat expcont
-         in (NegProp.Lax pprop, expcont)
+            val (pprop, expcont, ctx) = reconPos ctx dat expcont
+         in (NegProp.Lax pprop, expcont, ctx)
          end
 
        | LDatum.Node ("forall", dats, pos) =>
@@ -422,32 +422,32 @@ struct
 
              val x = unique ctx x 
              val t = reconExp 0 ctx exp1 
-             val (nprop1, expcont') = 
+             val (nprop1, expcont', ctx') = 
                 reconNeg (SOME (x, t) :: ctx) (List.last dats) exp2 
           in 
             ( requireType expcont'
-            ; (NegProp.Alli (x, t, nprop1), expcont))
+            ; (NegProp.Alli (x, t, nprop1), expcont, NONE :: ctx))
           end
 
        | LDatum.Node ("with", [dat1, dat2], pos) => 
          let
-            val (nprop1, expcont) = reconNeg ctx dat1 expcont
-            val (nprop2, expcont) = reconNeg ctx dat2 expcont
-         in (NegProp.With (nprop1, nprop2), expcont)
+            val (nprop1, expcont, ctx) = reconNeg ctx dat1 expcont
+            val (nprop2, expcont, ctx) = reconNeg ctx dat2 expcont
+         in (NegProp.With (nprop1, nprop2), expcont, ctx)
          end
 
        | LDatum.Node ("lefti", [dat1, dat2], pos) => 
          let
-            val (pprop1, expcont) = reconPos ctx dat1 expcont
-            val (nprop2, expcont) = reconNeg ctx dat2 expcont
-         in (NegProp.Lefti (pprop1, nprop2), expcont)
+            val (pprop1, expcont, ctx) = reconPos ctx dat1 expcont
+            val (nprop2, expcont, ctx) = reconNeg ctx dat2 expcont
+         in (NegProp.Lefti (pprop1, nprop2), expcont, ctx)
          end
 
        | LDatum.Node ("righti", [dat1, dat2], pos) => 
          let
-            val (pprop1, expcont) = reconPos ctx dat1 expcont
-            val (nprop2, expcont) = reconNeg ctx dat2 expcont
-         in (NegProp.Righti (pprop1, nprop2), expcont)
+            val (pprop1, expcont, ctx) = reconPos ctx dat1 expcont
+            val (nprop2, expcont, ctx) = reconNeg ctx dat2 expcont
+         in (NegProp.Righti (pprop1, nprop2), expcont, ctx)
          end
 
        | LDatum.Node (lab, _, pos) => 
@@ -494,7 +494,7 @@ struct
           | LDatum.Node ("pi", dats, pos) => traverse (List.last dats)
           | LDatum.Node ("lambda", dats, pos) => traverse (List.last dats)
           | LDatum.List (dat :: dats, pos) => traverse dat
-          | _ => raise Fail ("Bad LF syntax: "^LDatum.toString dat)
+          | _ => Sum.INR () (* Give up on LF, hopefully it's a rule *)
    in
       (dat, traverse dat)
    end
