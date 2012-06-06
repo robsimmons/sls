@@ -362,6 +362,27 @@ struct
                   (PosProp.PAtom x, expcont, NONE :: ctx)
          end
 
+       | LDatum.Node ("exists", dats, pos) =>
+         let 
+            val (exp0, expcont) = requireArrow expcont
+            val (x, exp1, exp2) = 
+               case exp0 of 
+                  IntSyn.Pi ((IntSyn.Dec (SOME x, exp1), IntSyn.Maybe), exp2) =>
+                     (x, exp1, exp2)
+                | IntSyn.Pi _ => 
+                     raise Fail ("Existentially quantified variable \
+                                 \is not free in scope: "
+                                 ^Pos.toString (LDatum.pos (hd dats)))
+                | _ => raise Fail "Internal error"
+            val x = unique ctx x 
+            val t = reconExp 0 ctx exp1 
+            val (nprop1, expcont', ctx') = 
+               reconPos (SOME (x, t) :: ctx) (List.last dats) exp2 
+         in 
+           ( requireType expcont'
+           ; (PosProp.Exists (x, t, nprop1), expcont, NONE :: ctx))
+         end
+
        | LDatum.Node ("tensor", [dat1, dat2], pos) =>
          let 
             val (pprop1, expcont, ctx) = reconPos ctx dat1 expcont
@@ -408,26 +429,26 @@ struct
          end
 
        | LDatum.Node ("forall", dats, pos) =>
-          let
-             val (exp0, expcont) = requireArrow expcont
-             val (x, exp1, exp2) = 
-                case exp0 of 
-                   IntSyn.Pi ((IntSyn.Dec (SOME x, exp1), IntSyn.Maybe), exp2) =>
-                      (x, exp1, exp2)
-                 | IntSyn.Pi _ => 
-                      raise Fail ("Universally quantified variable \
-                                  \is not free in rule: "
-                                  ^Pos.toString (LDatum.pos (hd dats)))
-                 | _ => raise Fail "Internal error"
+         let
+            val (exp0, expcont) = requireArrow expcont
+            val (x, exp1, exp2) = 
+               case exp0 of 
+                  IntSyn.Pi ((IntSyn.Dec (SOME x, exp1), IntSyn.Maybe), exp2) =>
+                     (x, exp1, exp2)
+                | IntSyn.Pi _ => 
+                     raise Fail ("Universally quantified variable \
+                                 \is not free in rule: "
+                                 ^Pos.toString (LDatum.pos (hd dats)))
+                | _ => raise Fail "Internal error"
 
-             val x = unique ctx x 
-             val t = reconExp 0 ctx exp1 
-             val (nprop1, expcont', ctx') = 
-                reconNeg (SOME (x, t) :: ctx) (List.last dats) exp2 
-          in 
-            ( requireType expcont'
-            ; (NegProp.Alli (x, t, nprop1), expcont, NONE :: ctx))
-          end
+            val x = unique ctx x 
+            val t = reconExp 0 ctx exp1 
+            val (nprop1, expcont', ctx') = 
+               reconNeg (SOME (x, t) :: ctx) (List.last dats) exp2 
+         in 
+           ( requireType expcont'
+           ; (NegProp.All (x, t, nprop1), expcont, NONE :: ctx))
+         end
 
        | LDatum.Node ("with", [dat1, dat2], pos) => 
          let

@@ -59,7 +59,7 @@ struct
        | PosProp.Fuse (pprop1, pprop2) => 
             pos true pprop1^" * "^pos false pprop2
        | PosProp.Exists (x, t, pprop) => 
-            lp np^"Ex "^x^": "^exp' t^". "^pos false pprop^rp np
+            lp np^"Exists "^x^": "^exp' t^". "^pos false pprop^rp np
        | PosProp.Unif (t1, t2) =>
             exp' t1^" == "^exp' t2
 
