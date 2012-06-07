@@ -3,7 +3,7 @@ struct
    fun init () = 
     ( Handle.register "type reconstruction" 0 (Recon.init ())
     ; Handle.register "signature storage/analysis" 5 (Signature.init ())
-    ; Handle.register "mode checking" 5 (Mode.init ())
+    ; Handle.register "mode checking" 5 (Modes.init ())
     ; Handle.register "pretty-printing syntax" 5 (PrettyPrint.init ())
     ; ())
 

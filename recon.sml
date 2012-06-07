@@ -62,7 +62,8 @@ struct
             ReconTerm.lam (ReconTerm.dec (SOME x, datToSyn d1, r), 
                            datToSyn d2)
        | LDatum.List (dat :: dats, pos) => datsToSyn (datToSyn dat) dats
-       | _ => raise Fail ("Bad LF syntax: "^LDatum.toString dat)
+       | _ => raise Fail ("Bad LF syntax: "^LDatum.toString dat^
+                          ": "^Pos.toString (LDatum.pos dat))
 
    and datsToSyn inside [] = inside
      | datsToSyn inside (dat :: dats) =
@@ -237,7 +238,8 @@ struct
             LDatum.Node ("at", [datToRule dat], pos)
        | LDatum.Node ("mobile", [dat], pos) =>
             LDatum.Node ("mobile", [datToRule dat], pos) 
-       | _ => raise Fail ("Bad SLS syntax: "^LDatum.toString dat)
+       | _ => raise Fail ("Bad SLS syntax: "^LDatum.toString dat^
+                          ": "^Pos.toString (LDatum.pos dat))
    end
 
    (* Come up with a fake LF type to force Twelf to do dependent type 
