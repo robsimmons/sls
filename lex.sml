@@ -45,6 +45,8 @@ struct
             Stream.Nil => Stream.Nil
           | Stream.Cons ((#"#", coord'), cs) => sharp coord (coord', cs)
           | Stream.Cons ((#";", coord'), cs) => sharp coord (coord', cs)
+          | Stream.Cons ((#"\"", coord'), cs) => 
+               string coord' [#"\""] (coord', cs) ()
           | Stream.Cons ((c, coord'), cs) =>
                if reserved c 
                then Stream.Cons ((str c, Pos.pos coord coord'), 
@@ -76,6 +78,9 @@ struct
           | Stream.Cons ((#";", coord'), cs) => 
                Stream.Cons ((implode (rev chars), Pos.pos start coord),
                             Stream.lazy (next (single (coord', cs))))
+          | Stream.Cons ((#"\"", coord'), cs) => 
+               Stream.Cons ((implode (rev chars), Pos.pos start coord),
+                            Stream.lazy (string coord' [#"\""] (coord', cs)))
           | Stream.Cons ((c, coord'), cs) => 
                if Char.isSpace c 
                then Stream.Cons ((implode (rev chars), Pos.pos start coord), 
@@ -86,6 +91,18 @@ struct
                         (Stream.Cons ((str c, Pos.pos coord coord'),
                            Stream.lazy (next (coord', cs)))))
                else token start (c :: chars) (coord', cs)
+
+      (* XXX add escape chars *)
+      and string quote_coord chars (coord, cs) () =
+         case Stream.front cs of 
+            Stream.Nil => raise Fail "End of file in string"
+          | Stream.Cons ((#"\^D", coord'), cs) => 
+               raise Fail "End of file in string"
+          | Stream.Cons ((#"\"", coord'), cs) =>
+               Stream.Cons ((implode (rev chars), Pos.pos quote_coord coord'),
+                  Stream.lazy (next (single (coord', cs))))
+          | Stream.Cons ((c, coord'), cs) => 
+               string quote_coord (c :: chars) (coord', cs) ()
    in 
       if n = 0 
       then Stream.lazy (next (coord, cs))

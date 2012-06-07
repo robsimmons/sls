@@ -16,11 +16,14 @@ Group is
   (* Type reconstruction (which invokes the handlers in a privileged way) *)
   recon.sml
 
-  (* Mode checking *)
+  (* Mode checking - depends on signature *)
   mode.sml
 
   (* Pretty-printing *)
   prettyprint.sml
+
+  (* Operationalization - depends on mode, pretty-printing *)
+  operationalize.sml
 
   (* Frontend *)
   lex.sml

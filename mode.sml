@@ -45,6 +45,7 @@ struct
        in case Signature.find s' of
              SOME _ => raise Fail ("Predicate '"^s^"' already defined")
            | NONE => handleMode' (s', dats, pos)
+          (* This means we don't check for modes: is that too weird? *)
        end
      | handleMode ([], pos) = 
           raise Fail ("No predicate and no modes given: "^Pos.toString pos)
