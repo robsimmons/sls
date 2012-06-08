@@ -8,36 +8,7 @@ struct
 
    val file: TextIO.outstream option ref = ref NONE
 
-   fun print s = Option.app (fn f => TextIO.output (f, s)) (!file)
-
-   fun mappings 
-          (PosDatum.List 
-              [("(", [PosDatum.Atom (old, _),
-                      PosDatum.Atom ("~>", _),
-                      PosDatum.Atom (eval, _), 
-                      PosDatum.Atom (retn, _)], pos1), 
-               (")", [], pos2)]) =
-          forwardChain := SymbolRedBlackDict.insert (!forwardChain)
-                             (Symbol.fromValue old)
-                             (Symbol.fromValue eval, Symbol.fromValue retn)
-     | mappings dats = 
-          raise Fail "Bad mappings (expected '(ev ~> eval retn)')"
-
-   fun failOperation pos = 
-       raise Fail ("Ill formed #operationalize (expected form \
-                   \'#operationalize \"filename\" (ev ~> eval retn) ...': "
-                   ^Pos.toString pos)
-   fun handleOperation ((PosDatum.Atom (filename, _) :: dats), pos) =
-         (if size filename = 0 orelse String.sub (filename, 0) <> #"\""
-          then failOperation pos
-          else case !file of
-                  NONE => 
-                    (app mappings dats
-                   ; file := SOME (TextIO.openOut 
-                                     (String.extract (filename, 1, NONE))))
-           | SOME _ => 
-                raise Fail ("Already operationalizing! "^Pos.toString pos))
-     | handleOperation (_, pos) = failOperation pos
+   fun print' s = Option.app (fn f => TextIO.output (f, s)) (!file)
 
 
 
@@ -127,25 +98,109 @@ struct
          [NegProp.NAtom (a, sp)] => SymbolRedBlackDict.member (!forwardChain) a
        | _ => false
 
-(*
    fun update_bound n (x, db) = StringRedBlackDict.insert db n (fn m => m) 
 
-   fun prepC db nprop =
+   fun ins (x, set) = (print ("VAR: "^x^"\n"); StringRedBlackSet.insert set x)
+   fun partition ctx fv = 
+      List.partition (fn (x, t) => StringRedBlackSet.member fv x) ctx
+
+   (* Turns a proposition that is morally of the form
+    *
+    * An >-> ... >-> A1 >-> (a t0 tn+1)
+    *
+    * into a tuple 
+    * 
+    * (n, [(An,fvN),...,(A1,fv1)], fv, fv0, t0, tn+1)
+    * 
+    * where fvi is the free variables bound in Ai (or, when i=0, the 
+    * variables bound in t0) in their original dependency order. *)
+   fun prepC ctx_in nprop =
       case nprop of
          NegProp.NAtom (a, sp) => 
          let
-            val (spin, _) = splitSpine sp
-            val db = Syntax.Query.fvNeg (update_bound 0) db
+            val (spin, spout) = splitSpine (Modes.lookup a) sp
+            val () = print ("ZERO: "^PrettyPrint.neg false nprop^"\n")
+            val fv0 =
+               Syntax.Query.freevarsSpine ins StringRedBlackSet.empty db spin
+            val (ctx0, ctx) = partition ctx_in fv0
          in
-             
+            (1, [], ctx, (ctx0, a, spin, spout))
          end
-       | NegProp.Lefti 
-    
-*)
+       | NegProp.Lefti (ppropi, nprop) =>
+         let
+            val () = print ("STEP: "^PrettyPrint.pos false ppropi^"\n")
+            val fvi = 
+               Syntax.Query.freevarsPos ins StringRedBlackSet.empty db ppropi
+            val (i, props, ctx, hd) = prepC ctx_in nprop
+            val (ctxi, ctx) = partition ctx fvi
+         in
+            (i+1, ((ppropi, ctxi) :: props), ctx, hd)
+         end
+       | NegProp.Righti (ppropi, nprop) =>
+         let
+            val () = print ("STEP: "^PrettyPrint.pos false ppropi^"\n")
+            val fvi =  
+               Syntax.Query.freevarsPos ins StringRedBlackSet.empty db ppropi
+            val (i, props, ctx, hd) = prepC ctx_in nprop
+            val (ctxi, ctx) = partition ctx fvi
+         in
+            (i+1, ((ppropi, ctxi) :: props), ctx, hd)
+         end
+       | NegProp.All (x, t, nprop) =>
+         let
+            val (i, props, ctx, hd) = prepC ((x, t) :: ctx_in) nprop
+         in
+            (i, props, ctx, hd)
+         end
+       | NegProp.Alli (x, t, nprop) =>
+         let
+            val (i, props, ctx, hd) = prepC ((x, t) :: ctx_in) nprop
+         in
+            (i, props, ctx, hd)
+         end
+       | _ => raise Fail ("Proposition not in operationalizable form \
+                          \(C): "^PrettyPrint.neg false nprop^"'")    
+   fun rewriteC nprop =
+   let
+      val (_, props, _, (ctx0, a, spin, spout)) = prepC [] nprop
+      val (eval_a, retn_a) = SymbolRedBlackDict.lookup (!forwardChain) a
 
+      fun wrap [] nprop = nprop
+        | wrap ((x, t) :: ctx) nprop = wrap ctx (NegProp.All (x, t, nprop))
 
+      fun wrapi [] nprop = nprop
+        | wrapi ((x, t) :: ctx) nprop = wrapi ctx (NegProp.Alli (x, t, nprop))
 
-
+      fun loop [] = NegProp.Lax (PosProp.PAtom (Perm.Ord, retn_a, spout))
+        | loop ((p as PosProp.PAtom (Perm.Pers, b, sp), ctxi) :: props) = 
+             wrap ctxi (NegProp.Lefti (p, loop props))
+        | loop ((p as PosProp.Down (Perm.Pers, NegProp.NAtom (b, spi)), ctxi)
+                :: props) =
+            (case SymbolRedBlackDict.find (!forwardChain) b of
+                NONE => wrap ctxi (NegProp.Lefti (p, loop props))
+              | SOME (eval_b, retn_b) =>
+                let val (spin_i, spout_i) = splitSpine (Modes.lookup b) spi
+                in NegProp.Lax
+                      (PosProp.Fuse
+                          (PosProp.PAtom (Perm.Ord, eval_b, spin_i),
+                           PosProp.Down 
+                              (Perm.Ord, 
+                               wrap ctxi 
+                                  (NegProp.Lefti 
+                                      (PosProp.PAtom 
+                                          (Perm.Ord, retn_b, spout_i),
+                                       loop props)))))
+                end)
+        | loop ((PosProp.Down (Perm.Pers, nprop), ctxi) :: props) =
+             wrap ctxi (NegProp.Lefti (PosProp.Down (Perm.Pers, rewriteG nprop),
+                                       loop props))
+        | loop ((pprop, ctxi) :: pprops) =
+             raise Fail ("Proposition not in operationalizable form \
+                         \(C subgoal): "^PrettyPrint.pos false pprop^"'")
+   in
+      wrapi ctx0 (NegProp.Lefti (PosProp.PAtom (Perm.Ord, eval_a, spin),
+                                 loop (rev props)))
+   end
 
    (* REWRITING KINDS *)
 
@@ -172,25 +227,68 @@ struct
        end 
      | splitKnd _ _ = raise Fail "Invariant"
 
+
+
+   (* #operationalization *)
+
+   fun mappings 
+          (PosDatum.List 
+              [("(", [PosDatum.Atom (old, _),
+                      PosDatum.Atom ("~>", _),
+                      PosDatum.Atom (eval, _), 
+                      PosDatum.Atom (retn, _)], pos1), 
+               (")", [], pos2)]) =
+          forwardChain := SymbolRedBlackDict.insert (!forwardChain)
+                             (Symbol.fromValue old)
+                             (Symbol.fromValue eval, Symbol.fromValue retn)
+     | mappings dats = 
+          raise Fail "Bad mappings (expected '(ev ~> eval retn)')"
+
+   fun failOperation pos = 
+       raise Fail ("Ill formed #operationalize (expected form \
+                   \'#operationalize \"filename\" (ev ~> eval retn) ...': "
+                   ^Pos.toString pos)
+
+   fun handleOperation ((PosDatum.Atom (filename, _) :: dats), pos) =
+         (if size filename = 0 orelse String.sub (filename, 0) <> #"\""
+          then failOperation pos
+          else case !file of
+                  NONE => 
+                    (app mappings dats
+                   ; file := SOME (TextIO.openOut 
+                                     (String.extract (filename, 1, NONE))))
+           | SOME _ => 
+                raise Fail ("Already operationalizing! "^Pos.toString pos))
+     | handleOperation (_, pos) = failOperation pos
+
+
+
+   (* Revise constant declarations *)
+
    fun reviseCondec (s, k, class) = 
       case SymbolRedBlackDict.find (!forwardChain) s of
-         NONE => print (Symbol.toValue s^": "^PrettyPrint.exp false k^".\n")
+         NONE => print' (Symbol.toValue s^": "^PrettyPrint.exp false k^".\n")
        | SOME (eval, retn) => 
            (case Modes.find s of
                NONE => raise Fail ("Cannot operationalize '"^Symbol.toValue s
                                    ^"' without a mode declaration")
              | SOME mds =>
                let val (keval, kretn) = splitKnd mds k
-               in print (Symbol.toValue eval^": "
+               in print' (Symbol.toValue eval^": "
                          ^PrettyPrint.exp false keval^".\n")
-                ; print (Symbol.toValue retn^": "
+                ; print' (Symbol.toValue retn^": "
                          ^PrettyPrint.exp false kretn^".\n")
                end)
 
+
+   
+   (* Revise rules *)
+
    fun reviseRule (r, nprop) =
       if isC nprop 
-      then ()
-      else print (Symbol.toValue r^": "^PrettyPrint.neg false (rewriteD nprop)
+      then print' (Symbol.toValue r^": "^PrettyPrint.neg false (rewriteC nprop)
+                  ^".\n")
+      else print' (Symbol.toValue r^": "^PrettyPrint.neg false (rewriteD nprop)
                   ^".\n")
 
    fun init () = 
@@ -202,12 +300,14 @@ struct
                      SOME file => (TextIO.closeOut file)
                    | NONE => raise Fail ("Not operationalizing!"
                                          ^Pos.toString pos)
-                ; file := NONE)
+                ; file := NONE
+                ; print "#operationalize stop.\n")
             | (PosDatum.List [("operationalize", dats, pos)]) => 
-                 handleOperation (dats, pos)
+                 (handleOperation (dats, pos)
+                ; print "#operationalize stop.\n")
             | _ => ()),
-       condec = reviseCondec,
-       rule = reviseRule,
+       condec = fn x => if Option.isSome (!file) then reviseCondec x else (),
+       rule = fn x => if Option.isSome (!file) then reviseRule x else (),
        reset = fn () => 
                  (forwardChain := SymbolRedBlackDict.empty
                 ; Option.app TextIO.closeOut (!file)

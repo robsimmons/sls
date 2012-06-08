@@ -73,6 +73,7 @@ fv (arrow E1 E2) Y <- fv E1 Y.
 fv (arrow E1 E2) Y <- fv E2 Y.
 fv (var X _ Sp) X.
 fv (var X _ Sp) Y <- fvSpine Sp Y.
+fv (con _ Sp) Y <- fvSpine Sp Y.
 fv (lam X E) Y <- fv E Y, X != Y.
 #query freevars: fv + -.
 
