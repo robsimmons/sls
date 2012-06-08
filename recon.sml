@@ -419,8 +419,8 @@ struct
          in case atom of 
                Sum.INL x => (NegProp.NAtom x, expcont, NONE :: ctx)
              | Sum.INR (_, cid, _) => 
-                  raise Fail ("Constant"^Symbol.toValue cid^"' constructs \
-                              \positive atomic propositions, but a negative\
+                  raise Fail ("Constant '"^Symbol.toValue cid^"' constructs \
+                              \positive atomic propositions, but a negative \
                               \atomic proposition was expected here.")
          end
 
