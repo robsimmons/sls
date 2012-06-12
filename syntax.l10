@@ -47,6 +47,10 @@ with: negProp -> negProp -> negProp.
 all: string -> exp -> negProp -> negProp.
 alli: string -> exp -> negProp -> negProp.
 
+aProp: type. #type aProp transparent.
+pos: posProp -> aProp.
+neg: negProp -> aProp.
+
 
 
 // Analyzing LF expressions
@@ -128,29 +132,113 @@ fvNeg (alli X T A) Y <- fv T Y.
 fvNeg (alli X T A) Y <- fvNeg A Y, X != Y.
 #query freevarsNeg: fvNeg + -.
 
-headNeg: {A: negProp} negProp -> rel @ wNeg A.
-headNeg (nAtom A Sp) (nAtom A Sp).
-headNeg (lax A) (lax A).
-headNeg A H -> headNeg (lefti _ A) H.
-headNeg A H -> headNeg (righti _ A) H.
-headNeg A H -> headNeg (with A _) H.
-headNeg A H -> headNeg (with _ A) H.
-headNeg A H -> headNeg (all _ _ A) H.
-headNeg A H -> headNeg (alli _ _ A) H.
-#query negHeads: headNeg + -.
+subPos: {A: posProp} aProp -> rel @ wPos A.
+subNeg: {A: negProp} aProp -> rel @ wNeg A.
+
+subPos A (pos A).
+subPos (down _ A) C <- subNeg A C.
+subPos (fuse A _) C <- subPos A C.
+subPos (fuse _ A) C <- subPos A C.
+subPos (exists _ _ A) C <- subPos A C.
+
+subNeg A (neg A).
+subNeg (lax A) C <- subPos A C.
+subNeg (lefti A _) C <- subPos A C.
+subNeg (lefti _ A) C <- subNeg A C.
+subNeg (righti A _) C <- subPos A C.
+subNeg (righti _ A) C <- subNeg A C.
+subNeg (with A _) C <- subNeg A C.
+subNeg (with _ A) C <- subNeg A C.
+subNeg (all _ _ A) C <- subNeg A C.
+subNeg (alli _ _ A) C <- subNeg A C.
+
+endPos: {A: posProp} posProp -> rel @ wPos A.
+endPos (pAtom P A Sp) (pAtom P A Sp).
+endPos (down P A) (down P A).
+endPos (fuse A _) H <- endPos A H.
+endPos (fuse _ A) H <- endPos A H.
+endPos (exists _ _ A) H <- endPos A H.
+endPos (unif T S) (unif T S).
+
+subgoal: {A: negProp} posProp -> rel @ wNeg A.
+subgoal (lefti A B) H <- endPos A H.
+subgoal (lefti A B) H <- subgoal B H.
+subgoal (righti A B) H <- endPos A H.
+subgoal (righti A B) H <- subgoal B H.
+subgoal (with A B) H <- subgoal A H.
+subgoal (with A B) H <- subgoal B H.
+subgoal (all _ _ A) H <- subgoal A H.
+subgoal (alli _ _ A) H <- subgoal A H.
+
+endNeg: {A: negProp} negProp -> rel @ wNeg A.
+endNeg (nAtom A Sp) (nAtom A Sp).
+endNeg (lax A) (lax A).
+endNeg A H -> endNeg (lefti _ A) H.
+endNeg A H -> endNeg (righti _ A) H.
+endNeg A H -> endNeg (with A _) H.
+endNeg A H -> endNeg (with _ A) H.
+endNeg A H -> endNeg (all _ _ A) H.
+endNeg A H -> endNeg (alli _ _ A) H.
+#query negHeads: endNeg + -.
+
+head: type. #type head transparent.
+monadic: head.
+atomic: cid -> head.
+
+headPos: {A: posProp} head -> rel @ wPos A.
+headNeg: {A: negProp} head -> rel @ wNeg A.
+
+headNeg A monadic <- endNeg A (lax _).
+headNeg A (atomic P) <- endNeg A (nAtom P _).
+headPos A H <- endPos A (down _ A'), headNeg A' H.
 
 
 
 // Storing the signature
-wSignat: cid -> world.
-signat: {C: cid} exp -> exp -> rel @ wSignat C.
-rules: {R: cid} negProp -> rel @ wSignat R.
+wSignat: world.
+signat: cid -> exp -> exp -> rel @ wSignat.
+rules: cid -> negProp -> rel @ wSignat.
 #query lookup: signat + - -.
 #query lookupRule: rules + -.
 
-classify: {C: cid} exp -> rel @ wSignat C.
+classify: cid -> exp -> rel @ wSignat.
 classify C Eh <- signat C E _, headClass E Eh.
 #query lookupClass: classify + -.
 
 
 
+// Effects fragment calculuation
+
+wRuleSubord: world.
+ruleSubord: head -> head -> rel @ wRuleSubord.
+
+rules C A, 
+subNeg A (neg (lefti B1 B2)),
+headPos B1 H1,
+headNeg B2 H2
+ -> ruleSubord H1 H2.
+
+rules C A, 
+subNeg A (neg (righti B1 B2)),
+headPos B1 H1,
+headNeg B2 H2
+ -> ruleSubord H1 H2.
+
+ruleSubord H1 H2,
+ruleSubord H2 H3 
+ -> ruleSubord H1 H3.
+
+semanticEffects: rel.
+weaklySemanticEffects: rel.
+notSemanticEffects: rel.
+
+
+
+// Semantic effects fragment: monadic not subordinate to anything
+not (ruleSubord monadic _) -> semanticEffects.  
+
+// Weak semantic effects fragment: monadic not subordinate to intself
+ruleSubord monadic _, not (ruleSubord monadic monadic) -> weaklySemanticEffects.
+
+// Not semantic effects: mondiac subordinate to itself
+ruleSubord monadic monadic -> notSemanticEffects.
