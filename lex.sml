@@ -44,7 +44,7 @@ struct
          case Stream.front cs of
             Stream.Nil => Stream.Nil
           | Stream.Cons ((#"#", coord'), cs) => sharp coord (coord', cs)
-          | Stream.Cons ((#";", coord'), cs) => sharp coord (coord', cs)
+          | Stream.Cons ((#";", coord'), cs) => next (single (coord', cs)) ()
           | Stream.Cons ((#"\"", coord'), cs) => 
                string coord' [#"\""] (coord', cs) ()
           | Stream.Cons ((c, coord'), cs) =>
@@ -100,7 +100,7 @@ struct
                raise Fail "End of file in string"
           | Stream.Cons ((#"\"", coord'), cs) =>
                Stream.Cons ((implode (rev chars), Pos.pos quote_coord coord'),
-                  Stream.lazy (next (single (coord', cs))))
+                  Stream.lazy (next (coord', cs)))
           | Stream.Cons ((c, coord'), cs) => 
                string quote_coord (c :: chars) (coord', cs) ()
    in 

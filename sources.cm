@@ -2,7 +2,7 @@ Group is
   $SMACKAGE/cmlib/v1/cmlib.cm
   ../simple-fixity/sources.cm
   ../lambda-reader/sources.cm
-  ../twelf-recon/src/frontend/sources.cm
+  src/frontend/sources.cm
 
   fixity.sml (* Understands the concrete syntax of SLS *)
 
