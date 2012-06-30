@@ -1,0 +1,26 @@
+Library
+  signature FIELD
+  signature ORDERED_FIELD
+  signature INTEGERS
+  structure Integers
+  signature RATIONALS
+  structure Rationals
+is
+#if defined(NEW_CM)
+  $/basis.cm
+#endif
+#if defined(MLton)
+  (* Empty *)
+#elif (SMLNJ_VERSION * 1000 + SMLNJ_MINOR_VERSION >= 110043)
+  (* Empty *)
+#else
+  ../int-inf/sources.cm
+#endif
+  field.sig
+  ordered-field.sig
+  integers.sig
+  integers.fun
+  rationals.sig
+  rationals.fun
+  integers-mod.fun
+  domains.sml
