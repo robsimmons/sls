@@ -19,4 +19,4 @@ ev/choose:  ev (choose E1 E2) (choose V1 V2)
 ev/never:   ev never never.
 
 ev/wrap:    ev (wrap E1 \x. E2 x) (wrap V1 \x. E2 x)
-             <- ev E1 V1. 
+             <- ev E1 taV1. 

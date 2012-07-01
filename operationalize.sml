@@ -93,6 +93,8 @@ struct
 
    (* REWRITING CONCURRENT RULES *)
 
+   val doTailCall = ref true
+
    fun isC nprop = 
       case Syntax.Query.negHeadsList db nprop of
          [NegProp.NAtom (a, sp)] => SymbolRedBlackDict.member (!forwardChain) a
@@ -119,7 +121,7 @@ struct
          NegProp.NAtom (a, sp) => 
          let
             val (spin, spout) = splitSpine (Modes.lookup a) sp
-            val () = print ("ZERO: "^PrettyPrint.neg false nprop^"\n")
+            (* val () = print ("ZERO: "^PrettyPrint.neg false nprop^"\n") *)
             val fv0 =
                Syntax.Query.freevarsSpine ins StringRedBlackSet.empty db spin
             val (ctx0, ctx) = partition ctx_in fv0
@@ -128,7 +130,7 @@ struct
          end
        | NegProp.Lefti (ppropi, nprop) =>
          let
-            val () = print ("STEP: "^PrettyPrint.pos false ppropi^"\n")
+            (* val () = print ("STEP: "^PrettyPrint.pos false ppropi^"\n") *)
             val fvi = 
                Syntax.Query.freevarsPos ins StringRedBlackSet.empty db ppropi
             val (i, props, ctx, hd) = prepC ctx_in nprop
@@ -138,7 +140,7 @@ struct
          end
        | NegProp.Righti (ppropi, nprop) =>
          let
-            val () = print ("STEP: "^PrettyPrint.pos false ppropi^"\n")
+            (* val () = print ("STEP: "^PrettyPrint.pos false ppropi^"\n") *)
             val fvi =  
                Syntax.Query.freevarsPos ins StringRedBlackSet.empty db ppropi
             val (i, props, ctx, hd) = prepC ctx_in nprop
@@ -171,32 +173,85 @@ struct
       fun wrapi [] nprop = nprop
         | wrapi ((x, t) :: ctx) nprop = wrapi ctx (NegProp.Alli (x, t, nprop))
 
-      fun loop [] = NegProp.Lax (PosProp.PAtom (Perm.Ord, retn_a, spout))
-        | loop ((p as PosProp.PAtom (Perm.Pers, b, sp), ctxi) :: props) = 
-             wrap ctxi (NegProp.Lefti (p, loop props))
-        | loop ((p as PosProp.Down (Perm.Pers, NegProp.NAtom (b, spi)), ctxi)
-                :: props) =
-            (case SymbolRedBlackDict.find (!forwardChain) b of
-                NONE => wrap ctxi (NegProp.Lefti (p, loop props))
-              | SOME (eval_b, retn_b) =>
-                let val (spin_i, spout_i) = splitSpine (Modes.lookup b) spi
-                in NegProp.Lax
-                      (PosProp.Fuse
-                          (PosProp.PAtom (Perm.Ord, eval_b, spin_i),
-                           PosProp.Down 
-                              (Perm.Ord, 
-                               wrap ctxi 
-                                  (NegProp.Lefti 
-                                      (PosProp.PAtom 
-                                          (Perm.Ord, retn_b, spout_i),
-                                       loop props)))))
-                end)
-        | loop ((PosProp.Down (Perm.Pers, nprop), ctxi) :: props) =
-             wrap ctxi (NegProp.Lefti (PosProp.Down (Perm.Pers, rewriteG nprop),
-                                       loop props))
-        | loop ((pprop, ctxi) :: pprops) =
-             raise Fail ("Proposition not in operationalizable form \
-                         \(C subgoal): "^PrettyPrint.pos false pprop^"'")
+      (* Tail-call helper function: returns true if retn_a and retn_b are 
+       * exactly the same spine, each bind only variables mentioned in 
+       * the bound-here context, and each variable is only mentioned once. *)
+      fun checkgen ctx retn_a retn_b = 
+      let 
+         fun remove x [] = NONE
+           | remove x ((y, t) :: ys) =
+                if x = y then SOME ys 
+                else Option.map (fn ys => (y, t) :: ys) (remove x ys)
+      in (* Note: what does it mean that we only say "yes" if the implicit
+          * and explicit bindings match? Is that overly restrictive? *)
+         case (retn_a, retn_b) of
+            (Spine.Nil, Spine.Nil) => true
+          | (Spine.App (Exp.Var (xa, _, Spine.Nil), retn_a),
+             Spine.App (Exp.Var (xb, _, Spine.Nil), retn_b)) =>
+                if EQUAL = String.compare (xa, xb)
+                then (case remove xa ctx of NONE => false
+                       | SOME ctx => checkgen ctx retn_a retn_b)
+                else false
+          | (Spine.Appi (Exp.Var (xa, _, Spine.Nil), retn_a),
+             Spine.Appi (Exp.Var (xb, _, Spine.Nil), retn_b)) =>
+                if EQUAL = String.compare (xa, xb)
+                then (case remove xa ctx of NONE => false
+                       | SOME ctx => checkgen ctx retn_a retn_b)
+                else false
+          | _ => false
+      end
+
+      (* Attempt tail-call optimization, return NONE if it doesn't apply *)
+      val tailCall =
+         if not (!doTailCall) then (fn x => NONE)
+         else fn [(PosProp.Down (Perm.Pers, NegProp.NAtom (b, spi)), ctxi)] =>
+                   (case SymbolRedBlackDict.find (!forwardChain) b of
+                       NONE => NONE
+                     | SOME (eval_b, retn_b) => 
+                       let val (spin_i, spout_i) = 
+                              splitSpine (Modes.lookup b) spi
+                       in if checkgen ctxi spout_i spout
+                          then SOME (NegProp.Lax 
+                                        (PosProp.PAtom 
+                                            (Perm.Ord, eval_b, spin_i)))
+                          else NONE
+                       end)
+               | _ => NONE
+
+      (* Main loop that implements the [[Ai...An]](retn_a, spout) function *)
+      fun loop props = 
+        (case tailCall props of 
+            SOME nprop => nprop
+          | NONE => 
+              (case props of 
+                  [] => NegProp.Lax (PosProp.PAtom (Perm.Ord, retn_a, spout))
+                | ((p as PosProp.PAtom (Perm.Pers, b, sp), ctxi) :: props) =>
+                     wrap ctxi (NegProp.Lefti (p, loop props))
+                | ((p as PosProp.Down (Perm.Pers, NegProp.NAtom (b, spi)), ctxi)
+                  :: props) =>
+                     (case SymbolRedBlackDict.find (!forwardChain) b of
+                        NONE => wrap ctxi (NegProp.Lefti (p, loop props))
+                      | SOME (eval_b, retn_b) =>
+                        let val (spin_i, spout_i) = 
+                               splitSpine (Modes.lookup b) spi
+                           val npropCont = 
+                              wrap ctxi (NegProp.Lefti 
+                                            (PosProp.PAtom 
+                                                (Perm.Ord, retn_b, spout_i),
+                                            loop props))
+                        in NegProp.Lax
+                              (PosProp.Fuse
+                                  (PosProp.PAtom (Perm.Ord, eval_b, spin_i),
+                                   PosProp.Down (Perm.Ord, npropCont)))
+                        end)
+                | ((PosProp.Down (Perm.Pers, nprop), ctxi) :: props) =>
+                     wrap ctxi (NegProp.Lefti 
+                                   (PosProp.Down (Perm.Pers, rewriteG nprop),
+                                   loop props))
+                | ((pprop, ctxi) :: pprops) =>
+                     raise Fail ("Proposition not in operationalizable form \
+                                 \(C subgoal): "^PrettyPrint.pos false pprop
+                                 ^"'")))
    in
       wrapi ctx0 (NegProp.Lefti (PosProp.PAtom (Perm.Ord, eval_a, spin),
                                  loop (rev props)))
