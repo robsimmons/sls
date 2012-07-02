@@ -22,8 +22,10 @@ Group is
   (* Pretty-printing *)
   prettyprint.sml
 
-  (* Operationalization - depends on mode, pretty-printing *)
+  (* Transformations - depends on mode, pretty-printing *)
+  context.sml
   operationalize.sml
+  uncurry.sml
 
   (* Frontend *)
   lex.sml

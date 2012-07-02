@@ -102,9 +102,7 @@ struct
 
    fun update_bound n (x, db) = StringRedBlackDict.insert db n (fn m => m) 
 
-   fun ins (x, set) = (print ("VAR: "^x^"\n"); StringRedBlackSet.insert set x)
-   fun partition ctx fv = 
-      List.partition (fn (x, t) => StringRedBlackSet.member fv x) ctx
+   fun ins (x, set) = (StringRedBlackSet.insert set x)
 
    (* Turns a proposition that is morally of the form
     *
@@ -124,7 +122,7 @@ struct
             (* val () = print ("ZERO: "^PrettyPrint.neg false nprop^"\n") *)
             val fv0 =
                Syntax.Query.freevarsSpine ins StringRedBlackSet.empty db spin
-            val (ctx0, ctx) = partition ctx_in fv0
+            val (ctx0, ctx) = Context.partition ctx_in fv0
          in
             (1, [], ctx, (ctx0, a, spin, spout))
          end
@@ -134,7 +132,7 @@ struct
             val fvi = 
                Syntax.Query.freevarsPos ins StringRedBlackSet.empty db ppropi
             val (i, props, ctx, hd) = prepC ctx_in nprop
-            val (ctxi, ctx) = partition ctx fvi
+            val (ctxi, ctx) = Context.partition ctx fvi
          in
             (i+1, ((ppropi, ctxi) :: props), ctx, hd)
          end
@@ -144,7 +142,7 @@ struct
             val fvi =  
                Syntax.Query.freevarsPos ins StringRedBlackSet.empty db ppropi
             val (i, props, ctx, hd) = prepC ctx_in nprop
-            val (ctxi, ctx) = partition ctx fvi
+            val (ctxi, ctx) = Context.partition ctx fvi
          in
             (i+1, ((ppropi, ctxi) :: props), ctx, hd)
          end
@@ -166,12 +164,6 @@ struct
    let
       val (_, props, _, (ctx0, a, spin, spout)) = prepC [] nprop
       val (eval_a, retn_a) = SymbolRedBlackDict.lookup (!forwardChain) a
-
-      fun wrap [] nprop = nprop
-        | wrap ((x, t) :: ctx) nprop = wrap ctx (NegProp.All (x, t, nprop))
-
-      fun wrapi [] nprop = nprop
-        | wrapi ((x, t) :: ctx) nprop = wrapi ctx (NegProp.Alli (x, t, nprop))
 
       (* Tail-call helper function: returns true if retn_a and retn_b are 
        * exactly the same spine, each bind only variables mentioned in 
@@ -220,7 +212,8 @@ struct
 
       (* Main loop that implements the [[Ai...An]](retn_a, spout) function *)
       fun loop props = 
-        (case tailCall props of 
+      let val wrap = Context.wrap
+      in case tailCall props of 
             SOME nprop => nprop
           | NONE => 
               (case props of 
@@ -251,7 +244,8 @@ struct
                 | ((pprop, ctxi) :: pprops) =>
                      raise Fail ("Proposition not in operationalizable form \
                                  \(C subgoal): "^PrettyPrint.pos false pprop
-                                 ^"'")))
+                                 ^"'"))
+      end
    in
       wrapi ctx0 (NegProp.Lefti (PosProp.PAtom (Perm.Ord, eval_a, spin),
                                  loop (rev props)))
