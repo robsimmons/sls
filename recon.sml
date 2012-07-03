@@ -116,6 +116,13 @@ struct
             (* val () = print ("LAMBDA: "^x^"\n") *)
          in Exp.Lam (x, reconExp' replace n (SOME (x, t) :: ctx) exp2)
          end
+       | IntSyn.Lam (IntSyn.Dec (NONE, exp1), exp2) =>
+         let
+            val x = Context.unique ctx "x"
+            val t = reconExp 0 ctx exp1
+            (* val () = print ("LAMBDA: "^x^"\n") *)
+         in Exp.Lam (x, reconExp' replace n (SOME (x, t) :: ctx) exp2)
+         end
        | _ => raise Fail "Unexpected reconstruction term"
 
    and reconExp n ctx exp: Exp.t = reconExp' NONE n ctx exp

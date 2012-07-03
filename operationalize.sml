@@ -277,9 +277,37 @@ struct
        end 
      | splitKnd _ _ = raise Fail "Invariant"
 
+   (* Revise constant declarations *)
+
+   fun reviseCondec (s, k, class) = 
+      case SymbolRedBlackDict.find (!forwardChain) s of
+         NONE => print' (Symbol.toValue s^": "^PrettyPrint.exp false k^".\n")
+       | SOME (eval, retn) => 
+           (case Modes.find s of
+               NONE => raise Fail ("Cannot operationalize '"^Symbol.toValue s
+                                   ^"' without a mode declaration")
+             | SOME mds =>
+               let val (keval, kretn) = splitKnd mds k
+               in print' (Symbol.toValue eval^": "
+                         ^PrettyPrint.exp false keval^".\n")
+                ; print' (Symbol.toValue retn^": "
+                         ^PrettyPrint.exp false kretn^".\n")
+               end)
 
 
-   (* #operationalization *)
+   
+   (* Revise rules *)
+
+   fun reviseRule (r, nprop) =
+      if isC nprop 
+      then print' (Symbol.toValue r^": "^PrettyPrint.neg false (rewriteC nprop)
+                  ^".\n")
+      else print' (Symbol.toValue r^": "^PrettyPrint.neg false (rewriteD nprop)
+                  ^".\n")
+
+
+
+   (* #operationalize *)
 
    fun mappings 
           (PosDatum.List 
@@ -313,34 +341,6 @@ struct
 
 
 
-   (* Revise constant declarations *)
-
-   fun reviseCondec (s, k, class) = 
-      case SymbolRedBlackDict.find (!forwardChain) s of
-         NONE => print' (Symbol.toValue s^": "^PrettyPrint.exp false k^".\n")
-       | SOME (eval, retn) => 
-           (case Modes.find s of
-               NONE => raise Fail ("Cannot operationalize '"^Symbol.toValue s
-                                   ^"' without a mode declaration")
-             | SOME mds =>
-               let val (keval, kretn) = splitKnd mds k
-               in print' (Symbol.toValue eval^": "
-                         ^PrettyPrint.exp false keval^".\n")
-                ; print' (Symbol.toValue retn^": "
-                         ^PrettyPrint.exp false kretn^".\n")
-               end)
-
-
-   
-   (* Revise rules *)
-
-   fun reviseRule (r, nprop) =
-      if isC nprop 
-      then print' (Symbol.toValue r^": "^PrettyPrint.neg false (rewriteC nprop)
-                  ^".\n")
-      else print' (Symbol.toValue r^": "^PrettyPrint.neg false (rewriteD nprop)
-                  ^".\n")
-
    fun init () = 
       {syntax = 
           (fn (PosDatum.List [("operationalize", 
@@ -354,7 +354,7 @@ struct
                 ; print "#operationalize stop.\n")
             | (PosDatum.List [("operationalize", dats, pos)]) => 
                  (handleOperation (dats, pos)
-                ; print "#operationalize stop.\n")
+                ; print "#operationalize start.\n")
             | _ => ()),
        condec = fn x => if Option.isSome (!file) then reviseCondec x else (),
        rule = fn x => if Option.isSome (!file) then reviseRule x else (),

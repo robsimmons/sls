@@ -6,6 +6,7 @@ struct
     ; Handle.register "mode checking" 5 (Modes.init ())
     ; Handle.register "pretty-printing syntax" 5 (PrettyPrint.init ())
     ; Handle.register "operationalize" 10 (Operationalize.init ())
+    ; Handle.register "defunctionalize" 10 (Defunctionalize.init ())
     ; ())
 
    fun loop str =

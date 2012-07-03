@@ -13,9 +13,16 @@ Frontend.read "#operationalize stop.";
 HEADING "ORDERED ABSTRACT MACHINES (nested)";
 Frontend.reset ();
 Frontend.load "types.sls";
+Frontend.read "#defunctionalize \"ord-nested.auto.sls\" (cont frame : ord).";
 Frontend.load "natsem.auto.sls";
 Frontend.load "imp-ordmachine.sls";
+Frontend.read "#defunctionalize stop.";
 
 HEADING "ORDERED ABSTRACT MACHINES (flat)";
+Frontend.reset ();
+Frontend.load "types.sls";
+Frontend.load "ord-nested.auto.sls";
+Frontend.load "control-ordmachine.sls";
 
 HEADING "DESTINATION-PASSING";
+Frontend.reset ();

@@ -39,7 +39,7 @@ force: exp -> exp.                       ; force e
 #| Sequential control fragment, defined in control-ordmachine.sls |#
 
 raise: exp -> exp.                       ; raise e
-handle: exp -> (exp -> exp) -> exp.      ; try e catch x.ef 
+try: exp -> (exp -> exp) -> exp.         ; try e catch x.ef 
 
 raise1: frame.
 

@@ -16,5 +16,5 @@ ev/set: eval (set E1 E2)
          >-> {eval E1 *
               (All L. retn (loc L) 
                 >-> {eval E2 *
-                     (All V2. retn V2 * cell L _
+                     (All V2. retn V2 * cell L V_old
                        >-> {retn unit * cell L V2})})}.

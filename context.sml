@@ -1,12 +1,25 @@
 structure Context = 
 struct
-    (* Turns a context into a series of bindings *)
-    fun wrap [] nprop = nprop
-      | wrap ((x, t) :: ctx) nprop = wrap ctx (NegProp.All (x, t, nprop))
+   val db = Syntax.empty (* Caching *)
 
-    (* Turns a context into a series of implicit forall-bindings *)
-    fun wrapi [] nprop = nprop
-      | wrapi ((x, t) :: ctx) nprop = wrapi ctx (NegProp.Alli (x, t, nprop))
+   (* Turns a context into a series of bindings *)
+   fun wrap [] nprop = nprop
+     | wrap ((x, t) :: ctx) nprop = wrap ctx (NegProp.All (x, t, nprop))
+
+   (* Turns a context into a series of implicit forall-bindings *)
+   fun wrapi [] nprop = nprop
+     | wrapi ((x, t) :: ctx) nprop = wrapi ctx (NegProp.Alli (x, t, nprop))
+
+   (* Turns a context into a series of pi-bindings *)
+   fun wrape [] exp = exp
+     | wrape ((x, t) :: ctx) exp =  
+          if Syntax.Query.freevars (fn (s, b) => b orelse x = s) false db exp
+          then wrape ctx (Exp.Pi (x, t, exp))
+          else wrape ctx (Exp.Arrow (t, exp))
+
+   (* Turns a context into a series of implicit pi-bindings *)
+   fun wrapei [] exp = exp
+     | wrapei ((x, t) :: ctx) exp = wrapei ctx (Exp.Pii (x, t, exp))
 
    (* Partitions a context according to membership in a set: parts of 
     * the context that are in the set, and parts of the context that
