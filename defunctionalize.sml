@@ -87,7 +87,7 @@ struct
             NegProp.NAtom _ => raise CannotDefunctionalize n
           | NegProp.Lax pprop => 
             let val (n', pprop') = pprocess ctx n pprop
-            in (n', NegProp.Lax pprop) end
+            in (n', NegProp.Lax pprop') end
           | NegProp.Lefti (pprop, nprop) => 
             let val (n', nprop') = nprocess ctx n nprop
             in (n', NegProp.Lefti (pprop, nprop')) end
