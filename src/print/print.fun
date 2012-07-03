@@ -183,6 +183,11 @@ local
                 [F.Break, sym "->", F.Space],
                 I.App (V1, I.App(V2, I.Nil)))
 
+  fun equs (V1, V2) =
+         OpArgs(FX.Infix(arrowPrec, FX.Right),
+                [F.Break, sym "== ? ->", F.Space],
+                I.App (V1, I.App(V2, I.Nil)))
+
   (* Nonfix corresponds to application and therefore has precedence juxPrex (which is maximal) *)
   val appCtxt = Ctxt (FX.Nonfix, [], 0)
 
@@ -398,6 +403,8 @@ local
                        end
           | I.No => fmtLevel (I.Decl (G, D), (* I.decSub (D, s) *)
                               d, ctx, (arrow(I.EClo(V1,I.shift), V2), I.dot1 s)))
+    | fmtExpW (G, d, ctx, (I.Unif (U1, U2, V1, V2), s)) =
+         fmtLevel (G, d, ctx, (equs (U1, V2), s))
     | fmtExpW (G, d, ctx, (I.Pi((D as I.BDec _, P), V2), s)) =
       let
         val D' = Names.decLUName (G, D)

@@ -65,6 +65,7 @@ struct
   datatype Exp =                        (* Expressions:               *)
     Uni   of Uni                        (* U ::= L                    *)
   | Pi    of (Dec * Depend) * Exp       (*     | bPi (D, P). V         *)
+  | Unif  of Exp * Exp * Exp * Exp      (*     | U == U : V -> V      *)
   | Root  of Head * Spine               (*     | C @ S                *)
   | Redex of Exp * Spine                (*     | U @ S                *)
   | Lam   of Dec * Exp                  (*     | lam D. U             *)
@@ -633,6 +634,7 @@ struct
   (* should there possibly be a FgnConst case? also targetFamOpt -kw *)
   fun targetHeadOpt (Root (H, _)) = SOME(H)
     | targetHeadOpt (Pi(_, V)) = targetHeadOpt V
+    | targetHeadOpt (Unif(_,_,_, V)) = targetHeadOpt V
     | targetHeadOpt (Redex (V, S)) = targetHeadOpt V
     | targetHeadOpt (Lam (_, V)) = targetHeadOpt V
     | targetHeadOpt (EVar (ref (SOME(V)),_,_,_)) = targetHeadOpt V
@@ -654,6 +656,7 @@ struct
   *)
   fun targetFamOpt (Root (Const(cid), _)) = SOME(cid)
     | targetFamOpt (Pi(_, V)) = targetFamOpt V
+    | targetFamOpt (Unif(_,_,_, V)) = targetFamOpt V
     | targetFamOpt (Root (Def(cid), _)) = targetFamOpt (constDef cid)
     | targetFamOpt (Redex (V, S)) = targetFamOpt V
     | targetFamOpt (Lam (_, V)) = targetFamOpt V

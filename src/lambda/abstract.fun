@@ -135,6 +135,10 @@ struct
     *)
     fun occursInExp (k, I.Uni _) = I.No
       | occursInExp (k, I.Pi (DP, V)) = or (occursInDecP (k, DP), occursInExp (k+1, V))
+      | occursInExp (k, I.Unif (D1, D2, V1, V2)) = 
+          or (occursInExp (k, D1), 
+            or (occursInExp (k, D2), 
+              or (occursInExp (k, V1), occursInExp (k, V2))))
       | occursInExp (k, I.Root (H, S)) = occursInHead (k, H, occursInSpine (k, S))
       | occursInExp (k, I.Lam (D, V)) = or (occursInDec (k, D), occursInExp (k+1, V))
       | occursInExp (k, I.FgnExp csfe) =
@@ -206,6 +210,11 @@ struct
     fun collectExpW (G, (I.Uni L, s), K) = K
       | collectExpW (G, (I.Pi ((D, _), V), s), K) =
           collectExp (I.Decl (G, I.decSub (D, s)), (V, I.dot1 s), collectDec (G, (D, s), K))
+      | collectExpW (G, (I.Unif (U1, U2, V1, V2), s), K) =
+          collectExp (G, (U1, s), 
+            collectExp (G, (U2, s),
+              collectExp (G, (V1, s),
+                collectExp (G, (V2, s), K))))
       | collectExpW (G, (I.Root (F as I.FVar (name, V, s'), S), s), K) =
         if exists (eqFVar F) K
           then collectSpine (G, (S, s), K)
@@ -410,6 +419,11 @@ struct
       | abstractExpW (K, depth, (I.Pi ((D, P), V), s)) =
           piDepend ((abstractDec (K, depth, (D, s)), P),
                     abstractExp (K, depth + 1, (V, I.dot1 s)))
+      | abstractExpW (K, depth, (I.Unif (U1, U2, V1, V2), s)) =
+          I.Unif (abstractExp (K, depth, (U1, s)),
+                  abstractExp (K, depth, (U2, s)),
+                  abstractExp (K, depth, (V1, s)),
+                  abstractExp (K, depth, (V2, s)))
       | abstractExpW (K, depth, (I.Root (F as I.FVar _, S), s)) =
           I.Root (abstractFVar (K, depth, F),
                   abstractSpine (K, depth, (S, s)))

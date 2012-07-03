@@ -202,6 +202,7 @@ struct
     | typ of Paths.region
     | arrow of term * term
     | pi of dec * term
+    | unif of term * term * term 
     | lam of dec * term
     | app of term * term
     | hastype of term * term
@@ -248,6 +249,8 @@ struct
     | termRegion (typ (r)) = r
     | termRegion (arrow (tm1, tm2)) =
         Paths.join (termRegion tm1, termRegion tm2)
+    | termRegion (unif (tm1, _, tm3)) =
+        Paths.join (termRegion tm1, termRegion tm3)
     | termRegion (pi (tm1, tm2)) =
         Paths.join (decRegion tm1, termRegion tm2)
     | termRegion (lam (tm1, tm2)) =
@@ -463,6 +466,18 @@ struct
                                      "Body of pi must be a type or a kind")
         in
           (pi (tm1', tm2'), Arrow (V1, V2), Uni L, Next L)
+        end
+      | inferApx (G, unif (tm1, tm2, tm3)) =
+        let
+          val V = newCVar ()
+          val (tm1', U) = checkApx (G, tm1, V, Type, "Huh?")
+          val (tm2', _) = checkApx (G, tm2, V, Type, 
+                                     "Unified terms have different types")
+          val L = newLVar ()
+          val (tm3', V3) = checkApx (G, tm3, Uni L, Next L,
+                                    "Body of unif must be a type or a kind")
+        in
+           (unif (tm1', tm2', tm3'), Arrow (V, V3), Uni L, Next L)
         end
       | inferApx (G, tm as lam (tm1, tm2)) =
         let
@@ -915,6 +930,19 @@ struct
           val V2 = toIntro (B2, (L, id))
         in
           (pi (tm1', tm2'), Intro (Pi ((D, Maybe), V2)), L)
+        end
+      | inferExactN (G, unif (tm1, tm2, tm3)) =
+        let
+          val (tm1', B1, V) = inferExactN (G, tm1)
+          val Vs = Whnf.whnfExpandDef (V, id)
+          val R1 = toIntro (B1, Vs)
+          val (tm2', B2) = checkExact (G, tm2, Vs,
+                                      "Unified terms have distinct types")
+          val R2 = toIntro (B2, Vs)
+          val (tm3', B3, L) = inferExact (G, tm3) 
+          val V3 = toIntro (B3, (L, id))
+        in 
+          (unif (tm1', tm2', tm3'), Intro (Unif (R1, R2, EClo Vs, V3)), L)
         end
       | inferExactN (G, lam (tm1, tm2)) =
         let

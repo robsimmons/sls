@@ -27,6 +27,7 @@ sig
   val arrow : term * term -> term	(* tm -> tm *)
   val backarrow : term * term -> term	(* tm <- tm *)
   val pi : dec * term -> term           (* {d} tm *)
+  val unif : term * term * term -> term (* t1 = t2 -> t *)
   val lam : dec * term -> term          (* [d] tm *)
   val app : term * term -> term		(* tm tm *)
   val hastype : term * term -> term	(* tm : tm *)

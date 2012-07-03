@@ -264,6 +264,7 @@ struct
     *)
     and whnf (U as Uni _, s) = (U,s)
       | whnf (U as Pi _, s) = (U,s)
+      | whnf (U as Unif _, s) = (U,s)
       (* simple optimization (C@S)[id] = C@S[id] *)
       (* applied in Twelf 1.1 *)
       (* Sat Feb 14 20:53:08 1998 -fp *)

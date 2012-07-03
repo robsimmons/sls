@@ -43,6 +43,7 @@ sig
   datatype Exp =			(* Expressions:               *)
     Uni   of Uni			(* U ::= L                    *)
   | Pi    of (Dec * Depend) * Exp	(*     | Pi (D, P). V         *)
+  | Unif  of Exp * Exp * Exp * Exp      (*     | U == U : V -> V      *)
   | Root  of Head * Spine		(*     | H @ S                *)
   | Redex of Exp * Spine		(*     | U @ S                *)
   | Lam   of Dec * Exp			(*     | lam D. U             *)
