@@ -223,6 +223,7 @@ struct
             LDatum.Node ("at", [datToRule dat], pos)
        | LDatum.Node ("mobile", [dat], pos) =>
             LDatum.Node ("mobile", [datToRule dat], pos) 
+       | LDatum.Node ("one", [], pos) => LDatum.Node ("one", [], pos)
        | _ => raise Fail ("Bad SLS syntax: "^LDatum.toString dat^
                           ": "^Pos.toString (LDatum.pos dat))
    end
@@ -263,13 +264,16 @@ struct
             ruleToFakeLF dat1 (ruleToFakeLF dat2 cont)
        | LDatum.Node ("tensor", [dat1, dat2], pos) => 
             ruleToFakeLF dat1 (ruleToFakeLF dat2 cont)
+       | LDatum.Node ("one", [], pos) => cont
 
        | LDatum.Node ("bang", [dat], pos) => ruleToFakeLF dat cont
        | LDatum.Node ("at", [dat], pos) => ruleToFakeLF dat cont
        | LDatum.Node ("mobile", [dat], pos) => ruleToFakeLF dat cont
        | LDatum.Node ("monad", [dat], pos) => ruleToFakeLF dat cont
 
-       | LDatum.Node ("unify", _, _) => cont (* No output for unify *)
+       | LDatum.Node ("unify", [LDatum.Atom (term1, _),
+                                LDatum.Atom (term2, _)], pos) => 
+            ReconTerm.unif (term1, term2, cont)
        | _ => raise Fail ("Impossible?")
 
 
@@ -286,17 +290,18 @@ struct
             (exp, expcont)
        | _ => raise Fail "Internal error"
 
-   fun requireType exp = 
+   fun requireType exp msg = 
       case exp of 
          IntSyn.Root (IntSyn.Const cid, IntSyn.Nil) =>
-            if cid = !cidFakeType then () else raise Fail "Internal error"
-       | _ => raise Fail "Internal error"
+            if cid = !cidFakeType then ()
+            else raise Fail ("Internal error (requireType/"^msg^")")
+       | _ => raise Fail ("Internal error (requireType/"^msg^")")
 
    (* Get the implicitly bound variables from Twelf *)
    fun reconImplicit 0 ctx (dat: (string, ReconTerm.term) LDatum.t) exp = 
          let val (nprop, expcont, ctx) = reconNeg ctx dat exp
          in
-          ( requireType expcont
+          ( requireType expcont "outer implicit bindings"
           ; nprop)
          end
      | reconImplicit n ctx dat exp = 
@@ -349,6 +354,19 @@ struct
                   (PosProp.PAtom x, expcont, NONE :: ctx)
          end
 
+       | LDatum.Node ("unify", [dat1, dat2], pos) => 
+         let
+            val (exp1, exp2, expcont') = 
+               case expcont of 
+                  IntSyn.Unif (exp1, exp2, exp3, expcont') => 
+                     (exp1, exp2, expcont')
+                | _ => raise Fail "Internal error"
+            val t1 = reconExp 0 ctx exp1
+            val t2 = reconExp 0 ctx exp2 
+         in 
+            (PosProp.Unif (t1, t2), expcont', ctx)
+         end
+
        | LDatum.Node ("exists", dats, pos) =>
          let 
             val (exp0, expcont) = requireArrow expcont
@@ -366,7 +384,7 @@ struct
             val (nprop1, expcont', ctx') = 
                reconPos (SOME (x, t) :: ctx) (List.last dats) exp2 
          in 
-           ( requireType expcont'
+           ( requireType expcont' "exists"
            ; (PosProp.Exists (x, t, nprop1), expcont, NONE :: ctx))
          end
 
@@ -376,6 +394,9 @@ struct
             val (pprop2, expcont, ctx) = reconPos ctx dat2 expcont
          in (PosProp.Fuse (pprop1, pprop2), expcont, ctx)
          end
+
+       | LDatum.Node ("one", [], pos) =>
+            (PosProp.One, expcont, ctx)
    
        | LDatum.Node ("bang", [dat], pos) =>
          let val (nprop, expcont, ctx) = reconNeg ctx dat expcont
@@ -433,7 +454,7 @@ struct
             val (nprop1, expcont', ctx') = 
                reconNeg (SOME (x, t) :: ctx) (List.last dats) exp2 
          in 
-           ( requireType expcont'
+           ( requireType expcont' "forall"
            ; (NegProp.All (x, t, nprop1), expcont, NONE :: ctx))
          end
 
@@ -462,6 +483,8 @@ struct
             raise Fail ("Reconstruction error: unexpected '"^lab
                         ^"' where a negative proposition was expected: "
                         ^Pos.toString pos)
+
+       
 
        | LDatum.List _ => raise Fail "Internal error"
 
