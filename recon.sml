@@ -71,28 +71,6 @@ struct
 
 
 
-   (* We want reconstructed terms to have unique variable names *)
-   fun unique ctx x = 
-   let
-      fun uniqueInCtx x = 
-         not (List.exists (fn NONE => false | SOME (y, _) => x = y) ctx)
-
-      fun loop x' n =
-      let val y = x'^Int.toString n 
-      in if uniqueInCtx y then y else loop x' (n+1) end
-
-      fun removeNumberPostfix n = 
-         if n<=0 then "x"
-         else if Char.isDigit (String.sub (x, n-1)) 
-         then removeNumberPostfix (n-1)
-         else String.substring (x, 0, n)
-   in
-      if uniqueInCtx x then x
-      else loop (removeNumberPostfix (size x)) 1
-   end
-
-
-
    (* Read reconstructed Twelf syntax into the L10 LF representation *) 
    fun reconExp' replace n ctx exp: Exp.t = 
       case exp of 
@@ -108,7 +86,7 @@ struct
                        reconExp' replace n (NONE :: ctx) exp2)
        | IntSyn.Pi ((IntSyn.Dec (SOME x, exp1), IntSyn.Maybe), exp2) => 
          let
-            val x = unique ctx x 
+            val x = Context.unique ctx x 
             val t = reconExp 0 ctx exp1
          in if n=0
             then Exp.Pi (x, t, reconExp' replace n (SOME (x, t) :: ctx) exp2) 
@@ -133,7 +111,7 @@ struct
          end
        | IntSyn.Lam (IntSyn.Dec (SOME x, exp1), exp2) =>
          let
-            val x = unique ctx x 
+            val x = Context.unique ctx x 
             val t = reconExp 0 ctx exp1
             (* val () = print ("LAMBDA: "^x^"\n") *)
          in Exp.Lam (x, reconExp' replace n (SOME (x, t) :: ctx) exp2)
@@ -318,7 +296,7 @@ struct
          (case exp of  
              IntSyn.Pi ((IntSyn.Dec (SOME x, exp1), IntSyn.Maybe), exp2) => 
              let
-                val x = unique ctx x 
+                val x = Context.unique ctx x 
                 val t = reconExp 0 ctx exp1
              in NegProp.Alli 
                    (x, t, reconImplicit (n-1) (SOME (x, t) :: ctx) dat exp2)
@@ -376,7 +354,7 @@ struct
                                  \is not free in scope: "
                                  ^Pos.toString (LDatum.pos (hd dats)))
                 | _ => raise Fail "Internal error"
-            val x = unique ctx x 
+            val x = Context.unique ctx x 
             val t = reconExp 0 ctx exp1 
             val (nprop1, expcont', ctx') = 
                reconPos (SOME (x, t) :: ctx) (List.last dats) exp2 
@@ -443,7 +421,7 @@ struct
                                  ^Pos.toString (LDatum.pos (hd dats)))
                 | _ => raise Fail "Internal error"
 
-            val x = unique ctx x 
+            val x = Context.unique ctx x 
             val t = reconExp 0 ctx exp1 
             val (nprop1, expcont', ctx') = 
                reconNeg (SOME (x, t) :: ctx) (List.last dats) exp2 

@@ -171,7 +171,7 @@ struct
       fun checkgen ctx retn_a retn_b = 
       let 
          fun remove x [] = NONE
-           | remove x ((y, t) :: ys) =
+           | remove (x: string) ((y, t) :: ys) =
                 if x = y then SOME ys 
                 else Option.map (fn ys => (y, t) :: ys) (remove x ys)
       in (* Note: what does it mean that we only say "yes" if the implicit
@@ -247,8 +247,9 @@ struct
                                  ^"'"))
       end
    in
-      wrapi ctx0 (NegProp.Lefti (PosProp.PAtom (Perm.Ord, eval_a, spin),
-                                 loop (rev props)))
+      Context.wrapi ctx0 
+         (NegProp.Lefti (PosProp.PAtom (Perm.Ord, eval_a, spin),
+                         loop (rev props)))
    end
 
    (* REWRITING KINDS *)

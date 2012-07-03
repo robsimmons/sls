@@ -13,6 +13,9 @@ Group is
   (* Populating the signature *)
   signat.sml
 
+  (* Utilities *)
+  context.sml
+
   (* Type reconstruction (which invokes the handlers in a privileged way) *)
   recon.sml
 
@@ -23,7 +26,6 @@ Group is
   prettyprint.sml
 
   (* Transformations - depends on mode, pretty-printing *)
-  context.sml
   operationalize.sml
   uncurry.sml
 

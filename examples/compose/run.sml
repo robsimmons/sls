@@ -14,6 +14,7 @@ HEADING "ORDERED ABSTRACT MACHINES (nested)";
 Frontend.reset ();
 Frontend.load "types.sls";
 Frontend.load "natsem.auto.sls";
+Frontend.load "imp-ordmachine.sls";
 
 HEADING "ORDERED ABSTRACT MACHINES (flat)";
 
