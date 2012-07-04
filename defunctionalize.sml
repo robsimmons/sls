@@ -159,15 +159,25 @@ struct
                       PosDatum.List [(perm, [], posprem)]], pos1), 
                (")", [], pos2)]) =
        let 
+          val frame_cid = Symbol.fromValue frame
+          val cont_cid = Symbol.fromValue cont
           fun store cell =  
             (print' (cont^": "^frame^" -> prop "^perm^".\n")
-           ; cell := SOME (Symbol.fromValue cont, Symbol.fromValue frame))
-       in case perm of
+           ; cell := SOME (cont_cid, frame_cid))
+       in 
+         (case Signature.find frame_cid of
+                NONE => (print' (frame^": type.\n"); register frame_cid)
+              | SOME Exp.Typ => ()
+              | SOME exp => raise Fail ("Frame "^frame^" already declared as\
+                                        \ a constant of type "
+                                        ^PrettyPrint.exp false exp)
+        ; case perm of
              "ord" => store cont_ord
            | "lin" => store cont_lin
            | "aff" => store cont_aff
            | "pers" => store cont_pers
            | _ => raise failOperation posprem
+        ; register cont_cid)
        end
      | mappings pos dats = failOperation pos
 
