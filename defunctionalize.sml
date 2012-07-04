@@ -10,13 +10,26 @@ struct
    val cont_lin: (Symbol.symbol * Symbol.symbol) option ref = ref NONE
    val cont_aff: (Symbol.symbol * Symbol.symbol) option ref = ref NONE
    val cont_pers: (Symbol.symbol * Symbol.symbol) option ref = ref NONE
+   val used_names: SymbolRedBlackSet.set ref = ref SymbolRedBlackSet.empty
    fun reset () = 
      (Option.app TextIO.closeOut (!file)
     ; file := NONE
     ; cont_ord := NONE
     ; cont_lin := NONE
     ; cont_aff := NONE
-    ; cont_pers := NONE)
+    ; cont_pers := NONE
+    ; used_names := SymbolRedBlackSet.empty)
+
+   fun register name = 
+      used_names := SymbolRedBlackSet.insert (!used_names) name
+
+   fun freshname base = 
+   let fun loop n =  
+       let val candidate = Symbol.fromValue (base^Int.toString n)
+       in if SymbolRedBlackSet.member (!used_names) candidate
+          then loop (n+1) else (register candidate; candidate)
+       end
+   in loop 1 end
 
    fun ins (x, set) = (StringRedBlackSet.insert set x)
 
@@ -41,7 +54,7 @@ struct
                val (relevant_ctx, _) = Context.partition ctx fv
 
                (* Form and declare new frame *)
-               val frame = Symbol.fromValue (frame_root^Int.toString n)
+               val frame = freshname frame_root
                val frame_type = 
                   Context.wrape relevant_ctx (Exp.Con (t, Spine.Nil))
                val () = print' (Symbol.toValue frame^": "
@@ -58,8 +71,10 @@ struct
                val new_rule = 
                   Context.wrapi relevant_ctx 
                      (NegProp.Lefti (cont, defunct_nprop))
+               val rule_name = rule_root^Int.toString n
+               val () = register (Symbol.fromValue rule_name)
                val new_rule' = Uncurry.uncurry_unsafe new_rule
-               val () = print' (rule_root^Int.toString n^": " 
+               val () = print' (rule_name^": " 
                                 ^PrettyPrint.neg false new_rule'^".\n") 
             in 
                (n', cont)
@@ -109,7 +124,8 @@ struct
    end
 
    fun reviseCondec (s, k, class) = 
-      print' (Symbol.toValue s^": "^PrettyPrint.exp false k^".\n")
+     (register s
+    ; print' (Symbol.toValue s^": "^PrettyPrint.exp false k^".\n"))
        
    fun reviseRule (r, nprop) = 
    let 
@@ -117,10 +133,11 @@ struct
       val frame_root = 
          List.last (String.tokens (not o Char.isAlphaNum) rule_root)
    in
-      case defunctionalize rule_root frame_root nprop of
+     (register r
+    ; case defunctionalize rule_root frame_root nprop of
          NONE => print' (rule_root^": "^PrettyPrint.neg false nprop^".\n")
        | SOME nprop => 
-            print' (rule_root^": "^PrettyPrint.neg false nprop^".\n")
+            print' (rule_root^": "^PrettyPrint.neg false nprop^".\n"))
    end
 
 
