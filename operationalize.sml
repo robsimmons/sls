@@ -168,7 +168,7 @@ struct
       (* Tail-call helper function: returns true if retn_a and retn_b are 
        * exactly the same spine, each bind only variables mentioned in 
        * the bound-here context, and each variable is only mentioned once. *)
-      fun checkgen ctx retn_a retn_b = 
+      fun checkgen ctx spi_a spi_b = 
       let 
          fun remove x [] = NONE
            | remove (x: string) ((y, t) :: ys) =
@@ -176,19 +176,19 @@ struct
                 else Option.map (fn ys => (y, t) :: ys) (remove x ys)
       in (* Note: what does it mean that we only say "yes" if the implicit
           * and explicit bindings match? Is that overly restrictive? *)
-         case (retn_a, retn_b) of
+         case (spi_a, spi_b) of
             (Spine.Nil, Spine.Nil) => true
-          | (Spine.App (Exp.Var (xa, _, Spine.Nil), retn_a),
-             Spine.App (Exp.Var (xb, _, Spine.Nil), retn_b)) =>
+          | (Spine.App (Exp.Var (xa, _, Spine.Nil), spi_a),
+             Spine.App (Exp.Var (xb, _, Spine.Nil), spi_b)) =>
                 if EQUAL = String.compare (xa, xb)
                 then (case remove xa ctx of NONE => false
-                       | SOME ctx => checkgen ctx retn_a retn_b)
+                       | SOME ctx => checkgen ctx spi_a spi_b)
                 else false
-          | (Spine.Appi (Exp.Var (xa, _, Spine.Nil), retn_a),
-             Spine.Appi (Exp.Var (xb, _, Spine.Nil), retn_b)) =>
+          | (Spine.Appi (Exp.Var (xa, _, Spine.Nil), spi_a),
+             Spine.Appi (Exp.Var (xb, _, Spine.Nil), spi_b)) =>
                 if EQUAL = String.compare (xa, xb)
                 then (case remove xa ctx of NONE => false
-                       | SOME ctx => checkgen ctx retn_a retn_b)
+                       | SOME ctx => checkgen ctx spi_a spi_b)
                 else false
           | _ => false
       end
@@ -202,11 +202,13 @@ struct
                      | SOME (eval_b, retn_b) => 
                        let val (spin_i, spout_i) = 
                               splitSpine (Modes.lookup b) spi
-                       in if checkgen ctxi spout_i spout
-                          then SOME (NegProp.Lax 
+                       in if not (Symbol.eq (retn_a, retn_b))
+                          then NONE
+                          else if not (checkgen ctxi spout spout_i) 
+                          then NONE
+                          else SOME (NegProp.Lax 
                                         (PosProp.PAtom 
                                             (Perm.Ord, eval_b, spin_i)))
-                          else NONE
                        end)
                | _ => NONE
 
