@@ -13,3 +13,15 @@ Frontend.load "nat.sls";
 Frontend.read "#defunctionalize \"plus-defun.auto.sls\" (cont frame : ord).";
 Frontend.load "plus.auto.sls";
 Frontend.read "#defunctionalize stop.";
+
+Frontend.reset ();
+Frontend.load "nat.sls";
+Frontend.load "plus.0.sls";
+
+Frontend.reset ();
+Frontend.load "nat.sls";
+Frontend.load "plus.1.sls";
+
+Frontend.reset ();
+Frontend.load "nat.sls";
+Frontend.load "plus.2.sls";
