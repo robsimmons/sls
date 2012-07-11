@@ -6,8 +6,8 @@
 inc: nat -> nat -> prop.
 
 inc/eps: inc eps (c eps b1).
-inc/0: inc (c N b0) (c N b1).
-inc/1: inc (c N b1) (c R b0) <- inc N R.
+inc/b0: inc (c N b0) (c N b1).
+inc/b1: inc (c N b1) (c R b0) <- inc N R.
 
 #mode plus + + -.
 plus: nat -> nat -> nat -> prop.

@@ -18,3 +18,8 @@ HEADING "Flat ordered abstract machine";
 Frontend.reset ();
 Frontend.load "exp.sls";
 Frontend.load "ev-defun.auto.sls";
+
+HEADING "0 - Revised but equivalent version of ev-defun.auto.sls";
+Frontend.reset ();
+Frontend.load "exp.sls";
+Frontend.load "ev-defun.auto.sls";
