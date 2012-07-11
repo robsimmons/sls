@@ -4,7 +4,7 @@
    we observe that in specification plus.1.sls, a cont carrybit, once 
    evaluated, produces a (cont append0) frame. We can instead produce the
    (cont append0) frame early, in rule plus/b11, instead of late, in rule
-   plus/carry.
+   plus/carry (renamed to cont/carry).
 |#
 
 frame: type.
