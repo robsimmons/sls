@@ -119,7 +119,7 @@ struct
             in (n', NegProp.Alli (x, t, nprop')) end
    in 
       fn nprop =>
-         (SOME (#2 (nprocess [] 1 nprop))
+         (SOME (Uncurry.uncurry_unsafe (#2 (nprocess [] 1 nprop)))
           handle CannotDefunctionalize _ => NONE)
    end
 

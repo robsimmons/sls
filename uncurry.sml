@@ -27,7 +27,7 @@ struct
     * The behavior of doing the wrong thing without warning should be
     * understood as a bug! It's just a documented bug. *)
 
-   val uncurry_unsafe = 
+   val uncurry_unsafe: NegProp.t -> NegProp.t = 
    let 
       fun foldfuse [] = PosProp.One
         | foldfuse [ x ] = x
