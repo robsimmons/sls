@@ -342,19 +342,46 @@ struct
           | _ => raise Fail "Internal error"
       end 
 
-   and reconPos ctx (dat: (string, ReconTerm.term) LDatum.t) expcont = 
+   (* @X, $X, !X - X is a (affine, mobile, persistent) atomic proposition
+    *    or a negative proposition.
+    * X, where X is definitely not positive - X is some form of positive
+    *    atomic proposition or it is a shifted positive atomic proposition. *)
+   and reconModal ctx (dat: (string, ReconTerm.term) LDatum.t) perm expcont =
+   let
+      val compatible = 
+         case perm of 
+             Perm.Ord => (fn _ => ())
+           | perm =>
+               (fn (perm', _, _) => 
+                  (if Perm.eq (perm, perm')
+                      then ()
+                   else raise Fail ("Permeability of positive atomic \
+                                    \proposition doesn't match annotation. \
+                                    \Expected: "^Perm.toString perm^", \
+                                    \got: "^Perm.toString perm')))
+   in
       case dat of 
          LDatum.Atom (_, pos) => 
-         let val (atom, expcont) = reconAtom ctx pos expcont
-         in case (atom, ()) of
-               (Sum.INL x, _) =>
-                  (PosProp.Down (Perm.Ord, NegProp.NAtom x), expcont, 
+         let
+            val (atom, expcont) = reconAtom ctx pos expcont
+         in case atom of
+               Sum.INL x =>
+                  (PosProp.Down (perm, NegProp.NAtom x), expcont, 
                    NONE :: ctx)
-             | (Sum.INR x, _) =>
-                  (PosProp.PAtom x, expcont, NONE :: ctx)
+             | Sum.INR x =>
+                ( compatible x (* Permeability has to match! *)
+                ; (PosProp.PAtom x, expcont, NONE :: ctx))
          end
+       | _ => 
+         let val (nprop, expcont, ctx) = reconNeg ctx dat expcont
+         in (PosProp.Down (perm, nprop), expcont, ctx)
+         end
+   end
+         
 
-       | LDatum.Node ("unify", [dat1, dat2], pos) => 
+   and reconPos ctx (dat: (string, ReconTerm.term) LDatum.t) expcont = 
+      case dat of 
+         LDatum.Node ("unify", [dat1, dat2], pos) => 
          let
             val (exp1, exp2, expcont') = 
                case expcont of 
@@ -399,24 +426,15 @@ struct
             (PosProp.One, expcont, ctx)
    
        | LDatum.Node ("bang", [dat], pos) =>
-         let val (nprop, expcont, ctx) = reconNeg ctx dat expcont
-         in (PosProp.Down (Perm.Pers, nprop), expcont, ctx)
-         end
+            reconModal ctx dat (Perm.Pers) expcont
 
        | LDatum.Node ("at", [dat], pos) =>
-         let val (nprop, expcont, ctx) = reconNeg ctx dat expcont
-         in (PosProp.Down (Perm.Aff, nprop), expcont, ctx)
-         end
+            reconModal ctx dat (Perm.Aff) expcont
 
        | LDatum.Node ("mobile", [dat], pos) =>
-         let val (nprop, expcont, ctx) = reconNeg ctx dat expcont
-         in (PosProp.Down (Perm.Lin, nprop), expcont, ctx)
-         end
+            reconModal ctx dat (Perm.Lin) expcont
 
-       | _ =>
-         let val (nprop, expcont, ctx) = reconNeg ctx dat expcont
-         in (PosProp.Down (Perm.Ord, nprop), expcont, ctx)
-         end
+       | _ => reconModal ctx dat (Perm.Ord) expcont
 
    and reconNeg ctx (dat: (string, ReconTerm.term) LDatum.t) expcont = 
       case dat of
