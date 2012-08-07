@@ -87,6 +87,28 @@ fvSpine (appi E Sp) Y <- fv E Y.
 fvSpine (appi E Sp) Y <- fvSpine Sp Y.
 #query freevarsSpine: fvSpine + -.
 
+allv: {E: exp} string -> rel @ wExp E.
+allvSpine: {Sp: spine} string -> rel @ wSpine Sp.
+
+allv (pi X T E) Y <- allv T Y.
+allv (pi X T E) Y <- allv E Y.
+allv (pii X T E) Y <- allv T Y.
+allv (pii X T E) Y <- allv E Y.
+allv (arrow E1 E2) Y <- allv E1 Y.
+allv (arrow E1 E2) Y <- allv E2 Y.
+allv (var X _ Sp) X.
+allv (var X _ Sp) Y <- allvSpine Sp Y.
+allv (con _ Sp) Y <- allvSpine Sp Y.
+allv (lam X E) Y <- allv E Y.
+#query allvars: allv + -.
+
+allvSpine (app E Sp) Y <- allv E Y.
+allvSpine (app E Sp) Y <- allvSpine Sp Y.
+allvSpine (appi E Sp) Y <- allv E Y.
+allvSpine (appi E Sp) Y <- allvSpine Sp Y.
+#query allvarsSpine: allvSpine + -.
+
+
 
 
 // Mode analysis
@@ -131,6 +153,33 @@ fvNeg (all X T A) Y <- fvNeg A Y, X != Y.
 fvNeg (alli X T A) Y <- fv T Y.
 fvNeg (alli X T A) Y <- fvNeg A Y, X != Y.
 #query freevarsNeg: fvNeg + -.
+
+allvPos: {A: posProp} string -> rel @ wPos A.
+allvNeg: {A: negProp} string -> rel @ wNeg A.
+
+allvPos (pAtom _ _ Sp) Y <- allvSpine Sp Y.
+allvPos (down _ A) Y <- allvNeg A Y.
+allvPos (fuse A _) Y <- allvPos A Y.
+allvPos (fuse _ A) Y <- allvPos A Y.
+allvPos (exists X T A) Y <- allv T Y.
+allvPos (exists X T A) Y <- allvPos A Y.
+allvPos (unif T S) Y <- allv T Y.
+allvPos (unif T S) Y <- allv S Y.
+#query allvarsPos: allvPos + -.
+
+allvNeg (nAtom _ Sp) Y <- allvSpine Sp Y.
+allvNeg (lax A) Y <- allvPos A Y.
+allvNeg (lefti A _) Y <- allvPos A Y.
+allvNeg (lefti _ A) Y <- allvNeg A Y.
+allvNeg (righti A _) Y <- allvPos A Y.
+allvNeg (righti _ A) Y <- allvNeg A Y.
+allvNeg (with A _) Y <- allvNeg A Y.
+allvNeg (with _ A) Y <- allvNeg A Y.
+allvNeg (all X T A) Y <- allv T Y.
+allvNeg (all X T A) Y <- allvNeg A Y.
+allvNeg (alli X T A) Y <- allv T Y.
+allvNeg (alli X T A) Y <- allvNeg A Y.
+#query allvarsNeg: allvNeg + -.
 
 subPos: {A: posProp} aProp -> rel @ wPos A.
 subNeg: {A: negProp} aProp -> rel @ wNeg A.

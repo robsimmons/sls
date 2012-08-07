@@ -1,6 +1,5 @@
 structure Operationalize =
 struct
-
    val forwardChain: (Symbol.symbol * Symbol.symbol) 
                      SymbolRedBlackDict.dict ref = 
       ref SymbolRedBlackDict.empty
@@ -311,10 +310,10 @@ struct
                       ( Signature.register retn pos
                       ; print' (Symbol.toValue retn^": "
                                 ^PrettyPrint.exp false kretn^".\n"))
-                   | SOME _ => 
+                   | SOME pos' => 
                         (* TODO: Check that it's the correct kind? *)
                         print' (";; "^Symbol.toValue retn^" already declared \
-                                \at "^Pos.toString pos^"\n"))
+                                \at "^Pos.toString pos'^"\n"))
                end)
 
 

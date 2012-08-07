@@ -29,6 +29,7 @@ Group is
   operationalize.sml
   uncurry.sml
   defunctionalize.sml
+  destadd.sml
 
   (* Frontend *)
   lex.sml
