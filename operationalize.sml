@@ -1,6 +1,5 @@
 structure Operationalize =
 struct
-   val db = Syntax.empty (* Caching *)
 
    val forwardChain: (Symbol.symbol * Symbol.symbol) 
                      SymbolRedBlackDict.dict ref = 
@@ -96,11 +95,9 @@ struct
    val doTailCall = ref true
 
    fun isC nprop = 
-      case Syntax.Query.negHeadsList db nprop of
+      case Syntax.Query.negHeadsList Signature.empty nprop of
          [NegProp.NAtom (a, sp)] => SymbolRedBlackDict.member (!forwardChain) a
        | _ => false
-
-   fun update_bound n (x, db) = StringRedBlackDict.insert db n (fn m => m) 
 
    fun ins (x, set) = (StringRedBlackSet.insert set x)
 
@@ -121,7 +118,9 @@ struct
             val (spin, spout) = splitSpine (Modes.lookup a) sp
             (* val () = print ("ZERO: "^PrettyPrint.neg false nprop^"\n") *)
             val fv0 =
-               Syntax.Query.freevarsSpine ins StringRedBlackSet.empty db spin
+               Syntax.Query.freevarsSpine ins StringRedBlackSet.empty 
+                  Signature.empty 
+                  spin
             val (ctx0, ctx) = Context.partition ctx_in fv0
          in
             (1, [], ctx, (ctx0, a, spin, spout))
@@ -130,7 +129,9 @@ struct
          let
             (* val () = print ("STEP: "^PrettyPrint.pos false ppropi^"\n") *)
             val fvi = 
-               Syntax.Query.freevarsPos ins StringRedBlackSet.empty db ppropi
+               Syntax.Query.freevarsPos ins StringRedBlackSet.empty
+                  Signature.empty
+                  ppropi
             val (i, props, ctx, hd) = prepC ctx_in nprop
             val (ctxi, ctx) = Context.partition ctx fvi
          in
@@ -140,7 +141,9 @@ struct
          let
             (* val () = print ("STEP: "^PrettyPrint.pos false ppropi^"\n") *)
             val fvi =  
-               Syntax.Query.freevarsPos ins StringRedBlackSet.empty db ppropi
+               Syntax.Query.freevarsPos ins StringRedBlackSet.empty 
+                  Signature.empty 
+                  ppropi
             val (i, props, ctx, hd) = prepC ctx_in nprop
             val (ctxi, ctx) = Context.partition ctx fvi
          in
@@ -289,11 +292,29 @@ struct
                NONE => raise Fail ("Cannot operationalize '"^Symbol.toValue s
                                    ^"' without a mode declaration")
              | SOME mds =>
-               let val (keval, kretn) = splitKnd mds k
-               in print' (Symbol.toValue eval^": "
+               let
+                  val pos = valOf (Signature.registered s) 
+                  val (keval, kretn) = splitKnd mds k
+               in
+                ( (* Special case: a = eval_a is allowed, don't re-register *)
+                  if Symbol.eq (s, eval)
+                      then ()
+                  else Signature.register eval pos
+
+                  (* Every predicate foo has a unique eval_foo *)
+                ; print' (Symbol.toValue eval^": "
                          ^PrettyPrint.exp false keval^".\n")
-                ; print' (Symbol.toValue retn^": "
-                         ^PrettyPrint.exp false kretn^".\n")
+
+                  (* However, predicates foo and bar may share a retn_foo *)
+                ; case Signature.registered retn of
+                     NONE => 
+                      ( Signature.register retn pos
+                      ; print' (Symbol.toValue retn^": "
+                                ^PrettyPrint.exp false kretn^".\n"))
+                   | SOME _ => 
+                        (* TODO: Check that it's the correct kind? *)
+                        print' (";; "^Symbol.toValue retn^" already declared \
+                                \at "^Pos.toString pos^"\n"))
                end)
 
 
@@ -347,7 +368,7 @@ struct
       {syntax = 
           (fn (PosDatum.List [("operationalize", 
                                [PosDatum.Atom ("stop", _)], pos)]) => 
-                 (forwardChain := SymbolRedBlackDict.empty
+                ( forwardChain := SymbolRedBlackDict.empty
                 ; case !file of 
                      SOME file => (TextIO.closeOut file)
                    | NONE => raise Fail ("Not operationalizing!"

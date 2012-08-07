@@ -618,7 +618,8 @@ struct
     ; {syntax = 
           (fn (PosDatum.List [("condec", [PosDatum.Atom (s, _)], pos1), 
                                (":", dats, pos2)]) =>
-                 (case preprocess dats of
+                ( Signature.register (Symbol.fromValue s) pos1
+                ; case preprocess dats of
                     (dat, Sum.INL class) => 
                        (ignore o handleCondec) 
                           (s, dat, class, Pos.union pos1 pos2)
@@ -629,7 +630,8 @@ struct
                                          :: PosDatum.Atom (":", _) 
                                          :: dats),
                                 pos)]) => 
-                 handleRule (s, Fixity.resolve dats, pos)
+               ( Signature.register (Symbol.fromValue s) pos
+               ; handleRule (s, Fixity.resolve dats, pos))
 
             | _ => ()),
        condec = ignore,

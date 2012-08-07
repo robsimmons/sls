@@ -1,7 +1,5 @@
 structure Defunctionalize =
 struct
-   val db = Syntax.empty (* Caching *)
-
    val file: TextIO.outstream option ref = ref NONE
 
    fun print' s = Option.app (fn f => TextIO.output (f, s)) (!file)
@@ -10,30 +8,28 @@ struct
    val cont_lin: (Symbol.symbol * Symbol.symbol) option ref = ref NONE
    val cont_aff: (Symbol.symbol * Symbol.symbol) option ref = ref NONE
    val cont_pers: (Symbol.symbol * Symbol.symbol) option ref = ref NONE
-   val used_names: SymbolRedBlackSet.set ref = ref SymbolRedBlackSet.empty
+
    fun reset () = 
-     (Option.app TextIO.closeOut (!file)
+    ( Option.app TextIO.closeOut (!file)
     ; file := NONE
     ; cont_ord := NONE
     ; cont_lin := NONE
     ; cont_aff := NONE
-    ; cont_pers := NONE
-    ; used_names := SymbolRedBlackSet.empty)
+    ; cont_pers := NONE)
 
-   fun register name = 
-      used_names := SymbolRedBlackSet.insert (!used_names) name
-
-   fun freshname base = 
+   fun freshname pos base = 
    let fun loop n =  
        let val candidate = Symbol.fromValue (base^Int.toString n)
-       in if SymbolRedBlackSet.member (!used_names) candidate
-          then loop (n+1) else (register candidate; candidate)
+       in 
+          case Signature.registered candidate of
+             NONE => (Signature.register candidate pos; candidate)
+           | SOME _ => loop (n+1)
        end
    in loop 1 end
 
    fun ins (x, set) = (StringRedBlackSet.insert set x)
 
-   fun defunctionalize rule_root frame_root = 
+   fun defunctionalize pos rule_root frame_root = 
    let 
       exception CannotDefunctionalize of int
 
@@ -50,11 +46,11 @@ struct
                    | Perm.Pers => valOf (!cont_pers)
 
                val fv = Syntax.Query.freevarsNeg ins StringRedBlackSet.empty
-                           db nprop
+                           Signature.empty nprop
                val (relevant_ctx, _) = Context.partition ctx fv
 
                (* Form and declare new frame *)
-               val frame = freshname frame_root
+               val frame = freshname pos frame_root
                val frame_type = 
                   Context.wrape relevant_ctx (Exp.Con (t, Spine.Nil))
                val () = print' (Symbol.toValue frame^": "
@@ -72,7 +68,7 @@ struct
                   Context.wrapi relevant_ctx 
                      (NegProp.Lefti (cont, defunct_nprop))
                val rule_name = rule_root^Int.toString n
-               val () = register (Symbol.fromValue rule_name)
+               val () = Signature.register (Symbol.fromValue rule_name) pos
                val new_rule' = Uncurry.uncurry_unsafe new_rule
                val () = print' (rule_name^": " 
                                 ^PrettyPrint.neg false new_rule'^".\n") 
@@ -124,20 +120,19 @@ struct
    end
 
    fun reviseCondec (s, k, class) = 
-     (register s
-    ; print' (Symbol.toValue s^": "^PrettyPrint.exp false k^".\n"))
+      print' (Symbol.toValue s^": "^PrettyPrint.exp false k^".\n")
        
    fun reviseRule (r, nprop) = 
    let 
       val rule_root = Symbol.toValue r
       val frame_root = 
          List.last (String.tokens (not o Char.isAlphaNum) rule_root)
+      val pos = valOf (Signature.registered r)
    in
-     (register r
-    ; case defunctionalize rule_root frame_root nprop of
+      case defunctionalize pos rule_root frame_root nprop of
          NONE => print' (rule_root^": "^PrettyPrint.neg false nprop^".\n")
        | SOME nprop => 
-            print' (rule_root^": "^PrettyPrint.neg false nprop^".\n"))
+            print' (rule_root^": "^PrettyPrint.neg false nprop^".\n")
    end
 
 
@@ -147,7 +142,7 @@ struct
        raise Fail ("Ill formed #defunctionalize (expected form \
                    \'#defunctionalize \"filename\" (cont frame : perm) ...'),\
                    \ where\
-                     \ cont is an undeclared predicate, frame is a declared\
+                     \ cont is an undeclared predicate, frame is a\
                      \ type, and perm one of {ord, lin, aff, pers}"
                    ^Pos.toString pos)
 
@@ -162,11 +157,13 @@ struct
           val frame_cid = Symbol.fromValue frame
           val cont_cid = Symbol.fromValue cont
           fun store cell =  
-            (print' (cont^": "^frame^" -> prop "^perm^".\n")
+           ( print' (cont^": "^frame^" -> prop "^perm^".\n")
            ; cell := SOME (cont_cid, frame_cid))
        in 
-         (case Signature.find frame_cid of
-                NONE => (print' (frame^": type.\n"); register frame_cid)
+        ( case Signature.find frame_cid of
+                NONE => 
+                 ( print' (frame^": type.\n")
+                 ; Signature.register frame_cid pos)
               | SOME Exp.Typ => ()
               | SOME exp => raise Fail ("Frame "^frame^" already declared as\
                                         \ a constant of type "
@@ -177,7 +174,7 @@ struct
            | "aff" => store cont_aff
            | "pers" => store cont_pers
            | _ => raise failOperation posprem
-        ; register cont_cid)
+        ; Signature.register cont_cid pos)
        end
      | mappings pos dats = failOperation pos
 

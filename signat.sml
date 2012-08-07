@@ -1,7 +1,35 @@
 structure Signature = 
 struct
  
+   val reserved_names = 
+   let val fakepos = (fn c => Pos.pos c c) (Coord.init "<sls core>")
+   in 
+      List.foldr
+         (fn (name, dict) => 
+             SymbolRedBlackDict.insert dict (Symbol.fromValue name) fakepos)
+         SymbolRedBlackDict.empty
+         ["(", ")", "{", "}", 
+          "All", "Pi", "Exists", "\\",
+          "&", "<-<", "<<-", "o-", "<-", "->>", "-o", "->", ">->", "*",
+          "==", "!", "@", "$", 
+          "one" (*, "type", "prop", "ord", "lin", "aff", "pers" *)]
+   end
+
+   val empty = Syntax.empty (* Useful for memoizing *)
    val signat = ref Syntax.empty
+   val used_names = ref reserved_names
+
+   fun register cid pos = 
+   let fun errmsg pos' = "Cannot reserve identifier "^Symbol.toValue cid^" \
+                         \at "^Pos.toString pos^" - identifier was already \
+                         \reserved at "^Pos.toString pos'
+   in
+      used_names := #3 (SymbolRedBlackDict.operate (!used_names) cid
+                           (fn () => pos)
+                           (fn pos' => raise Fail (errmsg pos')))
+   end
+
+   fun registered cid = SymbolRedBlackDict.find (!used_names) cid 
 
    fun find cid = 
       case Syntax.Query.lookupList (!signat) cid of
@@ -41,5 +69,5 @@ struct
       {syntax = ignore,
        condec = handleCondec,
        rule = ignore,
-       reset = fn () => signat := Syntax.empty}
+       reset = fn () => (signat := Syntax.empty; used_names := reserved_names)}
 end
