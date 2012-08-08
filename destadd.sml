@@ -1,6 +1,7 @@
 structure DestAdd = 
 struct
    val file: TextIO.outstream option ref = ref NONE
+   val leftmosts: SymbolRedBlackSet.set ref = ref SymbolRedBlackSet.empty
 
    fun print' s = Option.app (fn f => TextIO.output (f, s)) (!file)
 
@@ -10,6 +11,7 @@ struct
 
    fun reset () = 
     ( Option.app TextIO.closeOut (!file)
+    ; leftmosts := SymbolRedBlackSet.empty
     ; file := NONE
     ; dest_type := NONE)
 
@@ -21,9 +23,11 @@ struct
       fun loop k =
          case k of  
             Exp.PProp Perm.Ord => 
-               Exp.Arrow (getdesttype (),
-                          Exp.Arrow (getdesttype (),
-                                     Exp.PProp Perm.Lin))
+               if SymbolRedBlackSet.member (!leftmosts) s
+                  then Exp.Arrow (getdesttype (), Exp.PProp Perm.Lin)
+               else Exp.Arrow (getdesttype (),
+                               Exp.Arrow (getdesttype (),
+                                          Exp.PProp Perm.Lin))
           | Exp.Pi (x, t, e) => Exp.Pi (x, t, loop e)
           | Exp.Pii (x, t, e) => Exp.Pii (x, t, loop e)
           | Exp.Arrow (t, e) => Exp.Arrow (t, loop e)
@@ -68,14 +72,16 @@ struct
       val getvar = fn isLeft => getvar (!max) isLeft
 
 
-      fun loopSpine (dl, dr) sp = 
+      fun loopSpine a (dl, dr) sp = 
          case sp of 
             Spine.Nil => 
-               Spine.App (Exp.Var (dl, ~1, Spine.Nil),
-                          Spine.App (Exp.Var (dr, ~1, Spine.Nil), 
-                                     Spine.Nil))
-          | Spine.App (e, sp) => Spine.App (e, loopSpine (dl, dr) sp)
-          | Spine.Appi (e, sp) => Spine.Appi (e, loopSpine (dl, dr) sp)
+               if SymbolRedBlackSet.member (!leftmosts) a
+                  then Spine.App (Exp.Var (dr, ~1, Spine.Nil), Spine.Nil)
+               else Spine.App (Exp.Var (dl, ~1, Spine.Nil),
+                               Spine.App (Exp.Var (dr, ~1, Spine.Nil), 
+                                          Spine.Nil))
+          | Spine.App (e, sp) => Spine.App (e, loopSpine a (dl, dr) sp)
+          | Spine.Appi (e, sp) => Spine.Appi (e, loopSpine a (dl, dr) sp)
 
       (* Handle a subgoal *)
       datatype incoming = 
@@ -91,7 +97,7 @@ struct
                val destR = getvar true
             in
                ([destL, destR],
-                PosProp.PAtom (Perm.Lin, a, loopSpine (destL, destR) sp))
+                PosProp.PAtom (Perm.Lin, a, loopSpine a (destL, destR) sp))
             end
   
           | (PosProp.PAtom (Perm.Ord, a, sp), LeftDest destR) =>
@@ -99,7 +105,7 @@ struct
                val destL = getvar true
             in
                ([destL],
-                PosProp.PAtom (Perm.Lin, a, loopSpine (destL, destR) sp))
+                PosProp.PAtom (Perm.Lin, a, loopSpine a (destL, destR) sp))
             end
 
           | (PosProp.PAtom (Perm.Ord, a, sp), RightDest destL) =>
@@ -107,7 +113,7 @@ struct
                val destR = getvar true
             in
                ([destR],
-                PosProp.PAtom (Perm.Lin, a, loopSpine (destL, destR) sp))
+                PosProp.PAtom (Perm.Lin, a, loopSpine a (destL, destR) sp))
             end
 
           | (PosProp.PAtom _, _) => ([], pprop)
@@ -175,7 +181,7 @@ struct
          case (pprop, dests) of 
             (PosProp.PAtom (Perm.Ord, a, sp), dL :: dR :: dests) =>
                (dR :: dests,
-                PosProp.PAtom (Perm.Lin, a, loopSpine (dL, dR) sp))
+                PosProp.PAtom (Perm.Lin, a, loopSpine a (dL, dR) sp))
           | (PosProp.PAtom (Perm.Ord, _, _), _) => raise Fail "Invariant"
           | (PosProp.PAtom _, _) => (dests, pprop)
           | (PosProp.Down (Perm.Ord, nprop), dL :: dR :: dests) =>
@@ -282,8 +288,13 @@ struct
                    \ where dest is a type."
                    ^Pos.toString pos)
 
-   fun handleOperation ([(PosDatum.Atom (filename, _)), 
-                         (PosDatum.Atom (dest, _))], 
+   fun addLeftmosts (PosDatum.Atom (a, _), set) =
+          SymbolRedBlackSet.insert set (Symbol.fromValue a)
+     | addLeftmosts (dat, set) = failOperation (PosDatum.pos dat)
+
+   fun handleOperation ((PosDatum.Atom (filename, _)
+                         ::PosDatum.Atom (dest, _)
+                         ::leftmosts_list), 
                         pos) =
        let val dest_cid = Symbol.fromValue dest 
        in 
@@ -291,7 +302,10 @@ struct
           then failOperation pos
           else case !file of
                   NONE => 
-                   ( file := SOME (TextIO.openOut 
+                   ( leftmosts := List.foldl addLeftmosts
+                                     SymbolRedBlackSet.empty
+                                     leftmosts_list
+                   ; file := SOME (TextIO.openOut 
                                      (String.extract (filename, 1, NONE)))
                    ; dest_type := SOME dest_cid
                    ; case Signature.registered dest_cid of
