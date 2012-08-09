@@ -8,6 +8,7 @@ struct
     ; Handle.register "operationalize" 10 (Operationalize.init ())
     ; Handle.register "defunctionalize" 10 (Defunctionalize.init ())
     ; Handle.register "destadd" 10 (DestAdd.init ())
+    ; Handle.register "clf" 15 (CLFPrint.init ())
     ; ())
 
    fun loop str =

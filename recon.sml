@@ -240,21 +240,25 @@ struct
        | LDatum.Node ("forall", [LDatum.Node (x, [], posx), dat1], pos) => 
             ReconTerm.arrow 
                (ReconTerm.pi (ReconTerm.dec0 (SOME x, r),
-                              ruleToFakeLF dat1 fakeEnd), cont)
+                              ruleToFakeLF dat1 fakeEnd),
+                cont)
        | LDatum.Node ("forall", [LDatum.Node (x, [], posx), 
                                  LDatum.Atom (typ, _), dat2], pos) =>
             ReconTerm.arrow
                (ReconTerm.pi (ReconTerm.dec (SOME x, typ, r), 
-                              ruleToFakeLF dat2 fakeEnd), cont)
+                              ruleToFakeLF dat2 fakeEnd), 
+                cont)
        | LDatum.Node ("exists", [LDatum.Node (x, [], posx), dat1], pos) => 
             ReconTerm.arrow 
                (ReconTerm.pi (ReconTerm.dec0 (SOME x, r),
-                              ruleToFakeLF dat1 fakeEnd), cont)
+                              ruleToFakeLF dat1 fakeEnd),
+                cont)
        | LDatum.Node ("exists", [LDatum.Node (x, [], posx), 
                                  LDatum.Atom (typ, _), dat2], pos) =>
             ReconTerm.arrow
                (ReconTerm.pi (ReconTerm.dec (SOME x, typ, r), 
-                              ruleToFakeLF dat2 fakeEnd), cont)
+                              ruleToFakeLF dat2 fakeEnd),
+                cont)
 
        | LDatum.Node ("with", [dat1, dat2], pos) => 
             ruleToFakeLF dat1 (ruleToFakeLF dat2 cont)
@@ -292,10 +296,12 @@ struct
 
    fun requireType exp msg = 
       case exp of 
-         IntSyn.Root (IntSyn.Const cid, IntSyn.Nil) =>
-            if cid = !cidFakeType then ()
-            else raise Fail ("Internal error (requireType/"^msg^")")
-       | _ => raise Fail ("Internal error (requireType/"^msg^")")
+         IntSyn.Root (IntSyn.Const cid, IntSyn.Nil) => ()
+(* AAH MYSTERIOUS ERROR WHY DOES THIS WORK WHY DOES THIS BREAK - RJS aug 8 12*)
+(*            if cid = !cidFakeType then ()
+            else raise Fail ("Internal error1 (requireType/"^msg
+                             ^"/"^Int.toString cid^")") *)
+       | _ => raise Fail ("Internal error2 (requireType/"^msg^")")
 
    (* Get the implicitly bound variables from Twelf *)
    fun reconImplicit 0 ctx (dat: (string, ReconTerm.term) LDatum.t) exp = 
@@ -411,7 +417,7 @@ struct
             val (nprop1, expcont', ctx') = 
                reconPos (SOME (x, t) :: ctx) (List.last dats) exp2 
          in 
-           ( requireType expcont' "exists"
+           ( requireType expcont' ("exists"^x) 
            ; (PosProp.Exists (x, t, nprop1), expcont, NONE :: ctx))
          end
 

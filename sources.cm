@@ -30,6 +30,7 @@ Group is
   uncurry.sml
   defunctionalize.sml
   destadd.sml
+  clf.sml
 
   (* Frontend *)
   lex.sml

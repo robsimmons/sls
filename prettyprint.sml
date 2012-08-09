@@ -55,7 +55,7 @@ struct
          PosProp.PAtom (_, c, sp) => Symbol.toValue c^spine sp
        | PosProp.Down (p, nprop) =>
             symbol p^neg true nprop
-       | PosProp.One => "1"
+       | PosProp.One => "one"
        | PosProp.Fuse (pprop1, pprop2) => 
             pos true pprop1^" * "^pos false pprop2
        | PosProp.Exists (x, t, pprop) => 

@@ -160,6 +160,7 @@ struct
             PosProp.PAtom (Perm.Ord, _, _) => 1
           | PosProp.Down (Perm.Ord, _) => 1
           | PosProp.Fuse (pprop1, pprop2) => anaConc pprop1 + anaConc pprop2
+          | PosProp.Exists (_, _, pprop) => anaConc pprop
           | _ => 0
 
       (* Make enough new destinations for a monadic head *)
@@ -218,7 +219,6 @@ struct
                val dL = List.hd dests
                val dR = List.last dests
                val n = anaConc pprop
-               val () = print ("ANSWER: "^Int.toString n^"\n")
                val dests = dL :: makeConcDests dR n
             in
                if n > 0 
@@ -284,7 +284,7 @@ struct
 
    fun failOperation pos = 
        raise Fail ("Ill formed #destadd (expected form \
-                   \'#destadd \"filename\" dest.'),\
+                   \'#destadd \"filename\" dest <list of leftmosts>.'),\
                    \ where dest is a type."
                    ^Pos.toString pos)
 
@@ -299,7 +299,7 @@ struct
        let val dest_cid = Symbol.fromValue dest 
        in 
          (if size filename = 0 orelse String.sub (filename, 0) <> #"\""
-          then failOperation pos
+             then failOperation pos
           else case !file of
                   NONE => 
                    ( leftmosts := List.foldl addLeftmosts
@@ -316,8 +316,9 @@ struct
                            (* TODO: Check that it's the correct kind? *)
                            print' (";; "^dest^" already \
                                    \declared at "^Pos.toString pos'^"\n"))
-           | SOME _ => 
-                raise Fail ("Already defunctionalizing! "^Pos.toString pos))
+                | SOME _ => 
+                     raise Fail ("Already adding destinations! " 
+                                 ^Pos.toString pos))
        end
 
      | handleOperation (_, pos) = failOperation pos
